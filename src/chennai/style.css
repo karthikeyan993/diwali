@@ -92,9 +92,9 @@
 
 /* ---------- Chennai skyline ---------- */
 #skyline {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  height: min(27vh, 230px);
-  opacity: .8;
+  position: absolute; left: 0; right: 0; bottom: 20px; /* the river meets the promenade's stone edge */
+  height: min(36vh, 300px);
+  opacity: .85;
 }
 #skyline::before {
   content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 160%;
@@ -106,8 +106,19 @@
 #skyline .city-lit { opacity: 0; will-change: opacity; }
 #skyline .city-lights { will-change: opacity; animation: serial 1.6s steps(1, end) infinite; }
 #skyline .city-lights.b { animation-delay: -.8s; }
+/* festival lighting: the gopuram cross-fades through colour washes */
+#skyline .vivid { opacity: 0; will-change: opacity; animation: vivid 15s ease-in-out infinite; }
+#skyline .v2 { animation-delay: -10s; }
+#skyline .v3 { animation-delay: -5s; }
+@keyframes vivid { 0% { opacity: 0; } 6%, 30% { opacity: .7; } 36%, 100% { opacity: 0; } }
+/* a lit country boat drifting along the river */
+#skyline .ferry { will-change: transform; animation: ferry 95s linear infinite; }
+@keyframes ferry { from { transform: translateX(-75%); } to { transform: translateX(75%); } }
+/* Marina promenade in the foreground, where the flower pots stand */
+#shore { position: absolute; left: 0; right: 0; bottom: 0; height: 52px; }
+#shore svg { display: block; width: 100%; height: 100%; overflow: visible; }
 @keyframes serial { 0% { opacity: 1; } 50% { opacity: .2; } }
-#greet { touch-action: none; padding-top: calc(96px + env(safe-area-inset-top)); padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+#greet { touch-action: none; padding-top: calc(96px + env(safe-area-inset-top)); padding-bottom: calc(min(30vh, 260px) + env(safe-area-inset-bottom)); }
 .score {
   position: absolute; top: calc(102px + env(safe-area-inset-top)); left: 12px;
   display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px 8px 11px; border-radius: 999px;
@@ -128,7 +139,11 @@
   background: none; border: 0; border-radius: 16px; cursor: pointer; pointer-events: none;
 }
 body.game .diya-btn { pointer-events: auto; }
-body.game .diya-btn.out .diya { position: relative; display: block; width: 54px; height: 29px; overflow: visible; }
+body.game .diya-btn.out .diya { animation: nudge 1.1s ease-in-out infinite; }
+@keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.diya { position: relative; display: block; width: 54px; height: 29px; overflow: visible; }
+.diya.pop { animation: diyaPop .5s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes diyaPop { from { transform: scale(1.22); } to { transform: none; } }
 /* the flame sits on the wick at the diya's spout */
 .halo {
   position: absolute; left: 52px; bottom: -14px; width: 110px; height: 90px; margin-left: -55px;
@@ -149,7 +164,7 @@ body.game .diya-btn.out .diya { position: relative; display: block; width: 54px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .player::before, .p-flame, #toran .strand, #skyline .city-lights { animation: none; }
+  .player::before, .p-flame, #toran .strand, #skyline .city-lights, #skyline .vivid, #skyline .ferry { animation: none; }
 }
 
 /* a finger nudges towards the next unlit diya if nobody has tapped one for a while */

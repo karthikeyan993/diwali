@@ -159,7 +159,8 @@ body.lit #veil { opacity: 0; }
 }
 @keyframes tapHint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
 .fuse.burning .ring, .fuse.burning .fuse-hint { display: none; }
-.fuse.gone, .fuse.away { opacity: 0; pointer-events: none; }
+.fuse.gone { opacity: 0; pointer-events: none; }
+.fuse.away { visibility: hidden; animation: none; pointer-events: none; }
 .rk-fly { position: fixed; z-index: 4; pointer-events: none; display: none; will-change: transform; }
 .rk-fly.on { display: block; }
 .rk-fly svg { display: block; width: 100%; height: 100%; overflow: visible; }

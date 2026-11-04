@@ -92,7 +92,10 @@ function lighthouse(cx) {
 /** LIC building */
 function lic(cx) {
   const d = [R(cx - 28, 132, 56, 188), R(cx - 20, 122, 40, 10), R(cx - 1, 90, 2, 32)];
-  for (let r = 0; r < 16; r++) for (let c = 0; c < 5; c++) win(cx - 22 + c * 9.5, 140 + r * 11, 4, 5, .3);
+  for (let r = 0; r < 16; r++) {
+    const litFloor = rnd() < .28;
+    for (let c = 0; c < 5; c++) win(cx - 22 + c * 9.5, 140 + r * 11, 4, 5, litFloor ? .85 : .08);
+  }
   return d;
 }
 
@@ -125,6 +128,55 @@ function fillers() {
   return d;
 }
 
+/** Coconut palms along the riverbank */
+function palm(x, h, lean) {
+  const top = [x + lean, G - h];
+  let d = `M${x} ${G}Q${f(x + lean * .25)} ${f(G - h * .55)} ${f(top[0])} ${f(top[1])}`;
+  for (const [ang, len] of [[-170, 30], [-140, 34], [-110, 26], [-70, 26], [-40, 34], [-10, 30], [-90, 18]]) {
+    const a = ang * Math.PI / 180, ex = top[0] + Math.cos(a) * len, ey = top[1] + Math.sin(a) * len * .55 + len * .35;
+    const cx = top[0] + Math.cos(a) * len * .5, cy = top[1] + Math.sin(a) * len * .5 - 6;
+    d += `M${f(top[0])} ${f(top[1])}Q${f(cx)} ${f(cy)} ${f(ex)} ${f(ey)}`;
+  }
+  return d;
+}
+
+/* ---------- Napier Bridge: a row of lit bow arches over the Cooum, near the Marina ---------- */
+export const DECK = { x0: 644, x1: 1136, y: 309 };
+function napier() {
+  let arches = '', hangers = '';
+  const solid = [R(640, 304, 500, 5)];
+  const lights = [];
+  const COLS = ['#ffd166', '#ff5fa2', '#5ce1ff', '#7dff6a'];
+  for (let i = 0; i < 5; i++) {
+    const x0 = 640 + i * 100;
+    arches += `M${x0 + 4} 304Q${x0 + 50} 258 ${x0 + 96} 304`;
+    solid.push(R(x0 - 1, 309, 4, G - 309));
+    for (let k = 1; k < 8; k++) {
+      const t = k / 8, ax = (1 - t) ** 2 * (x0 + 4) + 2 * (1 - t) * t * (x0 + 50) + t * t * (x0 + 96);
+      const ay = (1 - t) ** 2 * 304 + 2 * (1 - t) * t * 258 + t * t * 304;
+      hangers += `M${f(ax)} ${f(ay)}V304`;
+    }
+    for (let k = 1; k < 10; k++) {
+      const t = k / 10;
+      lights.push([(1 - t) ** 2 * (x0 + 4) + 2 * (1 - t) * t * (x0 + 50) + t * t * (x0 + 96), (1 - t) ** 2 * 304 + 2 * (1 - t) * t * 258 + t * t * 304, COLS[(i + k) % 4]]);
+    }
+  }
+  solid.push(R(1136, 309, 4, G - 309));
+  return { solid, arches, hangers, lights, rail: 'M640 301H1140' };
+}
+
+/* ---------- a lit country boat drifting along the river (its own layer, slides on the GPU) ---------- */
+function boat(cx, y) {
+  return `
+    <path d="M${cx - 26} ${y}Q${cx} ${y + 9} ${cx + 26} ${y}L${cx + 30} ${y - 4}H${cx - 30}Z" fill="#2a1406"/>
+    <path d="M${cx - 2} ${y - 4}V${y - 26}" stroke="#2a1406" stroke-width="1.6"/>
+    <path d="M${cx - 1} ${y - 25}L${cx + 16} ${y - 8}H${cx - 1}Z" fill="#3a1d3a" opacity=".8"/>
+    <circle cx="${cx - 14}" cy="${y - 8}" r="2.2" fill="#ffcf6b" filter="url(#cityGlow)"/>
+    <g transform="translate(0 ${2 * y + 6}) scale(1 -1)" opacity=".3"><circle cx="${cx - 14}" cy="${y - 8}" r="2.2" fill="#ffcf6b"/></g>`;
+}
+
+export const VH = 420, WY = G; // the river starts where the city meets the ground
+
 export function buildSkyline(el) {
   windows.length = 0; lights.length = 0; door.length = 0;
   seed = 7;
@@ -133,19 +185,42 @@ export function buildSkyline(el) {
   const c = central(818);
   const l = lighthouse(985);
   const s = santhome(1110);
+  const nb = napier();
   const front = [...ripon(150), ...lic(380), ...g, ...c.d, ...l.d, ...s.d];
-  // Everything is drawn once. Anything that changes over time lives in its own overlay <svg>
-  // whose CSS opacity is animated, so the browser only re-composites and never re-paints the city.
+  const gopD = g.join('');
+  const palms = [palm(250, 92, 10), palm(352, 78, -8), palm(874, 74, 9), palm(1168, 96, -12)].join('');
+
+  // Chennai Central detail: string courses and pilasters across the red-brick front
+  let centralDetail = 'M723 262H913M723 282H913';
+  for (let x = 729; x < 913; x += 12) centralDetail += `M${x} 256V320`;
+
   const dot = ([x, y]) => `<circle cx="${f(x)}" cy="${f(y)}" r="1.15"/>`;
   const lightsA = lights.filter((_, i) => i % 2 === 0).map(dot).join('');
   const lightsB = lights.filter((_, i) => i % 2 === 1).map(dot).join('');
+  const bridgeDot = ([x, y, col]) => `<circle cx="${f(x)}" cy="${f(y)}" r="1.5" fill="${col}"/>`;
+  const bridgeA = nb.lights.filter((_, i) => i % 2 === 0).map(bridgeDot).join('');
+  const bridgeB = nb.lights.filter((_, i) => i % 2 === 1).map(bridgeDot).join('');
   const rect = ([x, y, w, h, r]) => `<rect x="${f(x)}" y="${f(y)}" width="${w}" height="${h}" rx=".6" opacity="${f(.35 + r * .55)}"/>`;
   const steadyWin = windows.filter((w) => w[4] <= .82).map(rect).join('');
-  // twinkling windows ride on the two serial-light layers, so there are only three layers in total
+  // twinkling windows ride on the two serial-light layers, so there are only a few layers in total
   const twinkle = windows.filter((w) => w[4] > .82);
   const twinkleA = twinkle.filter((_, i) => i % 2 === 0).map(rect).join('');
   const twinkleB = twinkle.filter((_, i) => i % 2 === 1).map(rect).join('');
-  const layer = (cls, body) => `<svg class="${cls}" viewBox="0 0 1200 ${G}" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${body}</svg>`;
+
+  // the river: reflections of the lights, squashed and fading with depth, plus ripples
+  const mirror = `translate(0 ${f(WY * 1.8)}) scale(1 -0.8)`;
+  const streaks = windows.filter((w) => w[4] > .5).map(([x, y, w, h]) => `<rect x="${f(x)}" y="${f(y - h * 2)}" width="${w}" height="${f(h * 3)}"/>`).join('');
+  let ripples = '';
+  for (let i = 0; i < 46; i++) {
+    const y = WY + 4 + rnd() * (VH - WY - 6), x = rnd() * 1200, len = 18 + rnd() * 70;
+    ripples += `<path d="M${f(x)} ${f(y)}h${f(len)}" stroke-opacity="${f(.05 + rnd() * .12)}"/>`;
+  }
+
+  const layer = (cls, body) => `<svg class="${cls}" viewBox="0 0 1200 ${VH}" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${body}</svg>`;
+  // festival colour washes on the gopuram (cross-faded with CSS opacity), reflected in the river
+  const vivid = (cls, grad) => layer(`vivid ${cls}`, `
+    <path d="${gopD}" fill="url(#${grad})"/>
+    <path d="${gopD}" fill="url(#${grad})" transform="${mirror}" opacity=".14" mask="url(#fadeMask)"/>`);
 
   el.innerHTML = layer('city-base', `
   <defs>
@@ -161,25 +236,63 @@ export function buildSkyline(el) {
     <linearGradient id="doorGrad" gradientUnits="userSpaceOnUse" x1="0" y1="266" x2="0" y2="${G}">
       <stop offset="0" stop-color="#ffd27a"/><stop offset=".6" stop-color="#ff9a3c"/><stop offset="1" stop-color="#c2521c"/>
     </linearGradient>
+    <linearGradient id="river" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1046"/><stop offset="1" stop-color="#04020c"/></linearGradient>
+    <linearGradient id="gSaffron" gradientUnits="userSpaceOnUse" x1="0" y1="80" x2="0" y2="${G}">
+      <stop offset="0" stop-color="#ffe27a" stop-opacity=".9"/><stop offset=".5" stop-color="#ff8c1a" stop-opacity=".75"/><stop offset="1" stop-color="#ff3d6e" stop-opacity=".45"/>
+    </linearGradient>
+    <linearGradient id="gMagenta" gradientUnits="userSpaceOnUse" x1="0" y1="80" x2="0" y2="${G}">
+      <stop offset="0" stop-color="#ff9bd2" stop-opacity=".9"/><stop offset=".5" stop-color="#d93fae" stop-opacity=".75"/><stop offset="1" stop-color="#7b3cff" stop-opacity=".45"/>
+    </linearGradient>
+    <linearGradient id="gGreen" gradientUnits="userSpaceOnUse" x1="0" y1="80" x2="0" y2="${G}">
+      <stop offset="0" stop-color="#b8ffd0" stop-opacity=".9"/><stop offset=".5" stop-color="#2ee6a5" stop-opacity=".7"/><stop offset="1" stop-color="#1f8fff" stop-opacity=".45"/>
+    </linearGradient>
+    <linearGradient id="fadeGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>
+    <mask id="fadeMask" maskUnits="userSpaceOnUse" x="0" y="${WY}" width="1200" height="${VH - WY}">
+      <rect x="0" y="${WY}" width="1200" height="${VH - WY}" fill="url(#fadeGrad)"/>
+    </mask>
     <filter id="cityGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     <path id="cityFront" d="${front.join('')}"/>
   </defs>
   <path d="${back.join('')}" fill="#120b30" opacity=".85"/>
   <use href="#cityFront" fill="url(#cityFill)" stroke="url(#cityRim)" stroke-width="1.1"/>
+  <path d="${centralDetail}" stroke="#3a2a70" stroke-width=".6" opacity=".7"/>
   <g fill="#ffcf6b">${steadyWin}</g>
   <path d="${door.join('')}" fill="url(#doorGrad)" filter="url(#cityGlow)" opacity=".9"/>
   <g filter="url(#cityGlow)">
     <circle cx="${c.clock[0]}" cy="${c.clock[1]}" r="9" fill="#ffe9b0" opacity=".9"/>
     <circle cx="${s.rose[0]}" cy="${s.rose[1]}" r="5" fill="#ffb3d9" opacity=".7"/>
     <rect x="${l.lamp[0] - 6}" y="${l.lamp[1] - 7}" width="12" height="13" fill="#fff1c2"/>
-  </g>`)
+  </g>
+  <path d="${palms}" fill="none" stroke="#0a0618" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="${nb.solid.join('')}" fill="#1c1446"/>
+  <path d="${nb.hangers}" stroke="#2c2266" stroke-width=".8"/>
+  <path d="${nb.arches}${nb.rail}" fill="none" stroke="#3a2c80" stroke-width="2.4" stroke-linecap="round"/>
+  <rect x="0" y="${WY}" width="1200" height="${VH - WY}" fill="url(#river)"/>
+  <g mask="url(#fadeMask)">
+    <g transform="${mirror}" opacity=".3">
+      <path d="${door.join('')}" fill="#ff9a3c"/>
+      <path d="${nb.arches}" fill="none" stroke="#ffd166" stroke-width="1.6" stroke-dasharray="2 4"/>
+    </g>
+    <g transform="${mirror}" fill="#ffcf6b" opacity=".2">${streaks}</g>
+  </g>
+  <g stroke="#c9b8ff" stroke-width=".8">${ripples}</g>`)
     + layer('city-lit', `<use href="#cityFront" fill="url(#cityLit)"/>`)
-    + layer('city-lights a', `<g fill="#ffcf6b">${twinkleA}</g><g fill="#ffe7a0" filter="url(#cityGlow)">${lightsA}</g>`)
-    + layer('city-lights b', `<g fill="#ffcf6b">${twinkleB}</g><g fill="#ffe7a0" filter="url(#cityGlow)">${lightsB}</g>`);
+    + vivid('v1', 'gSaffron')
+    + vivid('v2', 'gMagenta')
+    + vivid('v3', 'gGreen')
+    + layer('ferry', boat(520, WY + 30))
+    + layer('city-lights a', `<g fill="#ffcf6b">${twinkleA}</g><g fill="#ffe7a0" filter="url(#cityGlow)">${lightsA}</g><g filter="url(#cityGlow)">${bridgeA}</g>`)
+    + layer('city-lights b', `<g fill="#ffcf6b">${twinkleB}</g><g fill="#ffe7a0" filter="url(#cityGlow)">${lightsB}</g><g filter="url(#cityGlow)">${bridgeB}</g>`);
 
+  const base = el.querySelector('.city-base');
   const stop = el.querySelector('#cityLitStop');
   return {
     lit: el.querySelector('.city-lit'),
     setLightColor(hex) { stop.setAttribute('stop-color', hex); stop.nextElementSibling.setAttribute('stop-color', hex); },
+    /** viewBox point -> screen pixels (accounts for the slice crop) */
+    toScreen(x, y) {
+      const m = base.getScreenCTM();
+      return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f };
+    },
   };
 }

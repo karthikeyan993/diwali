@@ -7,7 +7,7 @@ import { createSky } from '../shared/sky.js';
 import { bigBurst } from '../shared/rocket.js';
 import { createFuse } from '../shared/fuse.js';
 import { revealLetters, center } from '../shared/letters.js';
-import { buildSkyline } from './skyline.js';
+import { buildSkyline, WY, DECK } from './skyline.js';
 import { buildToran } from './toran.js';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -25,6 +25,25 @@ const hexNum = (c) => parseInt(c.trim().slice(1), 16);
 
 const drawToran = () => buildToran($('#toran'), innerWidth);
 
+/** Marina promenade: a stone edge, railing and glowing lamp posts, drawn to the screen width */
+function buildShore(el, W) {
+  let posts = '', lamps = '';
+  for (let x = 6; x < W; x += 22) posts += `M${x} 22V30`;
+  for (let x = 40; x < W; x += 140) {
+    lamps += `<rect x="${x - 1}" y="6" width="2" height="24" fill="#140a26"/><circle cx="${x}" cy="6" r="3.2" fill="#ffe2a8"/><circle cx="${x}" cy="6" r="11" fill="url(#lampGlow)"/>`;
+  }
+  el.innerHTML = `<svg viewBox="0 0 ${W} 52" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs><radialGradient id="lampGlow"><stop offset="0" stop-color="#ffc36b" stop-opacity=".55"/><stop offset="1" stop-color="#ffc36b" stop-opacity="0"/></radialGradient>
+    <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1a44"/><stop offset="1" stop-color="#0a0514"/></linearGradient></defs>
+    <rect x="0" y="30" width="${W}" height="22" fill="url(#stone)"/>
+    <rect x="0" y="30" width="${W}" height="1.2" fill="#c98bd6" opacity=".4"/>
+    <path d="M0 22H${W}" stroke="#3a2456" stroke-width="1.6"/>
+    <path d="${posts}" stroke="#3a2456" stroke-width="1.4"/>
+    ${lamps}
+  </svg>`;
+}
+const drawShore = () => buildShore($('#shore'), innerWidth);
+
 function shake() {
   if (RM) return;
   world.classList.remove('shake');
@@ -35,7 +54,8 @@ function shake() {
 async function main() {
   createSky($('#sky'), { reducedMotion: RM });
   drawToran();
-  addEventListener('resize', drawToran);
+  drawShore();
+  addEventListener('resize', () => { drawToran(); drawShore(); });
 
   // Chennai skyline that catches the light of every burst
   const city = buildSkyline($('#skyline'));
@@ -58,7 +78,8 @@ async function main() {
     if (score % 10 === 0) { audio.chime(5); shake(); }
   };
 
-  const fx = await createFireworks($('#fx'), { quality: Q, onLight: lightCity, onTargetBurst });
+  const waterY = () => city.toScreen(0, WY).y;
+  const fx = await createFireworks($('#fx'), { quality: Q, onLight: lightCity, onTargetBurst, reflection: { y: waterY, alpha: .45 } });
 
   /* ---------------- Floating crackers game ---------------- */
   let targetTimer = null;
@@ -109,13 +130,30 @@ async function main() {
   let showTimer = null;
   const timers = [];
   const later = (ms, fn) => timers.push(setTimeout(fn, ms));
+  /** Napier Bridge moment: a gold waterfall pours off the deck into the river, and the pots join in */
+  let bridgeTimer = null;
+  function bridgeMoment() {
+    const a = city.toScreen(DECK.x0, DECK.y), b = city.toScreen(DECK.x1, DECK.y);
+    const x0 = Math.max(0, a.x), x1 = Math.min(fx.width, b.x);
+    if (x1 - x0 > 40) fx.waterfall(x0, x1, a.y + 1, waterY(), 7);
+    slots().forEach((x, i) => later(i * 150, () => fx.flowerPot(x, 6)));
+  }
   function stopShow() {
     clearTimeout(showTimer);
+    clearTimeout(bridgeTimer);
     timers.splice(0).forEach(clearTimeout);
   }
   function startShow(mode) {
     clearTimeout(showTimer);
+    clearTimeout(bridgeTimer);
     const party = mode === 'party';
+    if (party) {
+      const bridgeLoop = () => {
+        if (!document.hidden && !idle()) bridgeMoment();
+        bridgeTimer = setTimeout(bridgeLoop, rand(16000, 22000));
+      };
+      bridgeTimer = setTimeout(bridgeLoop, 2400);
+    }
     const go = () => {
       if (!document.hidden) {
         const W = fx.width, H = fx.height;
@@ -163,7 +201,8 @@ async function main() {
     await fuse.light(fx);
     chooser.classList.add('hidden');
     const W = fx.width, H = fx.height;
-    const { x, y } = await fuse.launch(fx, { x: W / 2, y: Math.max(H * .27, 110) }, { reducedMotion: RM });
+    // a long climb: the rocket shrinks into the distance as it rises
+    const { x, y } = await fuse.launch(fx, { x: W / 2, y: Math.max(H * .2, 90) }, { reducedMotion: RM, climb: 2.6, endScale: .32 });
     bigBurst(fx, x, y, later);
     shake();
     document.body.classList.add('lit');
@@ -230,7 +269,8 @@ async function main() {
     const step = lit++;
     gsap.fromTo(btn.querySelector('.flame-wrap'), { scale: 0 }, { scale: 1, duration: .9, ease: 'elastic.out(1.2, .4)' });
     gsap.to(btn.querySelector('.halo'), { opacity: 1, duration: .6 });
-    gsap.fromTo(btn.querySelector('.diya'), { scale: 1.25 }, { scale: 1, duration: .5, ease: 'back.out(3)' });
+    const art = btn.querySelector('.diya');
+    art.classList.remove('pop'); void art.getBoundingClientRect(); art.classList.add('pop');
     audio.chime(step);
 
     // sparkle fountain from the diya
@@ -256,6 +296,7 @@ async function main() {
       later(i * 170, () => fx.launchShell(rand(W * .1, W * .9), rand(H * .08, H * .45)));
     }
     slots().forEach((x, i) => later(i * 120, () => fx.flowerPot(x, 6)));
+    later(300, bridgeMoment);
     later(400, () => fx.chakra(W * .33));
     later(650, () => fx.chakra(W * .67));
     later(1200, () => fx.ladi(W * .06, W * .94, 30));

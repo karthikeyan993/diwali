@@ -136,7 +136,7 @@ export function createFuse(host) {
   }
 
   /** Lift the rocket out of the bottle and fly it to `target`. Resolves with the burst point (its nose). */
-  async function launch(fx, target, { reducedMotion = false } = {}) {
+  async function launch(fx, target, { reducedMotion = false, climb: climbFor = 1.8, endScale = .8 } = {}) {
     // put the flying copy exactly over the drawn rocket, then hide the drawn one: no visible swap
     const r = btn.getBoundingClientRect();
     Object.assign(fly.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
@@ -158,7 +158,7 @@ export function createFuse(host) {
 
     fly.classList.add('lit');
     const rumble = reducedMotion ? .2 : .45;
-    const climb = reducedMotion ? 1.2 : 1.8; // a longer, more graceful climb
+    const climb = reducedMotion ? 1.2 : climbFor;
     audio.launch(rumble, climb);
     const tl = gsap.timeline();
     // ignition: the rocket shudders in the bottle, spitting sparks
@@ -169,7 +169,7 @@ export function createFuse(host) {
       // lift-off: it accelerates away, leaning slightly as it drifts towards the middle
       .to(fly, {
         duration: climb, ease: 'power1.in',
-        x: dx, y: dy, rotation: gsap.utils.clamp(-12, 12, dx / 18), scale: .8,
+        x: dx, y: dy, rotation: gsap.utils.clamp(-12, 12, dx / 18), scale: endScale,
         onUpdate: () => emit(4, 1),
       });
     await tl;
