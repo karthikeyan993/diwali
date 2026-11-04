@@ -25,47 +25,8 @@
   filter: drop-shadow(0 0 22px rgba(80, 200, 255, .35));
 }
 
-/* ---------- Darkness and the fuse ---------- */
-/* Before the rocket goes up, a veil dims the whole harbour, leaving a faint glow where the rocket stands. */
-#veil {
-  position: absolute; inset: 0; pointer-events: none; will-change: opacity;
-  background: radial-gradient(70% 38% at 50% 100%, rgba(255, 150, 60, .1), rgba(1, 3, 12, .84) 70%), rgba(1, 3, 12, .3);
-  transition: opacity 1.6s ease;
-}
-body.lit #veil { opacity: 0; }
-
-.fuse {
-  position: fixed; z-index: 4; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom));
-  width: 220px; height: 200px; margin-left: -110px;
-  border: 0; padding: 0; background: none; cursor: pointer;
-  animation: rise .8s .3s backwards;
-  transition: opacity .6s ease;
-}
-.fuse svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.fuse .ring { transform-box: fill-box; transform-origin: center; animation: ring 1.4s ease-out infinite; }
-@keyframes ring { from { transform: scale(.6); opacity: 1; } to { transform: scale(2.4); opacity: 0; } }
-.fuse .ember { animation: ember .5s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
-@keyframes ember { from { transform: scale(.8); } to { transform: scale(1.15); } }
-.fuse-hint {
-  position: absolute; left: 6px; top: 190px; font-size: 1.6rem; line-height: 1;
-  animation: tapHint 1.2s ease-in-out infinite;
-}
-@keyframes tapHint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
-.fuse.burning .ring, .fuse.burning .fuse-hint { display: none; }
-.fuse.gone { opacity: 0; pointer-events: none; }
-.rk-fly { position: fixed; z-index: 4; pointer-events: none; display: none; will-change: transform; }
-.rk-fly.on { display: block; }
-.rk-fly svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.rk-flame {
-  position: absolute; left: 68.18%; top: 55.5%; width: 12px; height: 30px; margin-left: -6px;
-  border-radius: 50% 50% 50% 50% / 30% 30% 70% 70%;
-  background: radial-gradient(ellipse at 50% 22%, #fff 0 14%, #ffe066 30%, #ff8c1a 56%, rgba(255, 60, 0, 0) 74%);
-  transform-origin: 50% 0; opacity: 0; transition: opacity .15s;
-  animation: thrust .08s ease-in-out infinite alternate;
-  filter: drop-shadow(0 0 8px #ff9f1c);
-}
-.rk-fly.lit .rk-flame { opacity: 1; }
-.fuse:focus-visible { outline: 2px solid #fff; outline-offset: 4px; border-radius: 12px; }
+/* darkness tint for the harbour (the veil and fuse themselves live in shared/base.css) */
+#veil { background: radial-gradient(70% 38% at 50% 100%, rgba(255, 150, 60, .1), rgba(1, 3, 12, .84) 70%), rgba(1, 3, 12, .3); }
 
 /* ---------- Harbour ---------- */
 #harbour { position: absolute; left: 0; right: 0; bottom: 0; height: min(42vh, 360px); opacity: .92; }
@@ -97,7 +58,7 @@ body.lit #veil { opacity: 0; }
 .again { background: rgba(10, 25, 70, .6); }
 
 @media (prefers-reduced-motion: reduce) {
-  .fuse .ring, .fuse .ember, .fuse-hint, #harbour .city-lights { animation: none; }
+  #harbour .city-lights { animation: none; }
   #harbour .vivid, #harbour .ferry { animation: none; }
   #harbour .v1 { opacity: .9; }
 }

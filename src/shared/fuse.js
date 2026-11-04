@@ -10,43 +10,55 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (a) => a[(Math.random() * a.length) | 0];
 
 // viewBox 220 x 200, ground at y 198. Rocket centred on x 150.
-const FUSE_D = 'M152 111C166 117 177 140 173 168C169 190 140 196 110 192S52 185 22 192';
+const FUSE_D = 'M22 192C52 185 80 188 108 191C130 194 138 186 140 168C142 140 140 122 150 111'; // tip -> rocket
 const TAIL = [150, 111];   // where the exhaust comes out
-const NOSE = [150, 40];
+const NOSE = [150, 34];
 
 const DEFS = `
-  <linearGradient id="rkBody" x1="0" y1="0" x2="1" y2="0">
-    <stop offset="0" stop-color="#6a0b16"/><stop offset=".3" stop-color="#c81e36"/><stop offset=".48" stop-color="#ff6b78"/>
-    <stop offset=".62" stop-color="#d7263d"/><stop offset="1" stop-color="#5a0912"/>
+  <linearGradient id="rkShade" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset=".28" stop-color="#000" stop-opacity="0"/>
+    <stop offset=".42" stop-color="#fff" stop-opacity=".38"/><stop offset=".58" stop-color="#fff" stop-opacity="0"/>
+    <stop offset="1" stop-color="#000" stop-opacity=".55"/>
   </linearGradient>
+  <pattern id="rkSpiral" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(-32)">
+    <rect width="3.2" height="9" fill="#ffd166"/>
+  </pattern>
   <linearGradient id="rkGold" x1="0" y1="0" x2="1" y2="0">
-    <stop offset="0" stop-color="#8a5a12"/><stop offset=".45" stop-color="#ffe08a"/><stop offset=".6" stop-color="#ffc94a"/><stop offset="1" stop-color="#7a4c0c"/>
+    <stop offset="0" stop-color="#8a5a12"/><stop offset=".45" stop-color="#ffe9a0"/><stop offset=".6" stop-color="#ffc94a"/><stop offset="1" stop-color="#7a4c0c"/>
   </linearGradient>
   <linearGradient id="rkCone" x1="0" y1="0" x2="1" y2="0">
-    <stop offset="0" stop-color="#b8860b"/><stop offset=".45" stop-color="#fff0b8"/><stop offset=".7" stop-color="#ffcf4a"/><stop offset="1" stop-color="#8a5a12"/>
+    <stop offset="0" stop-color="#9aa3b8"/><stop offset=".42" stop-color="#ffffff"/><stop offset=".62" stop-color="#d6dbe8"/><stop offset="1" stop-color="#6c7590"/>
   </linearGradient>
-  <linearGradient id="rkStick" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6b4a2a"/><stop offset=".5" stop-color="#c9a070"/><stop offset="1" stop-color="#6b4a2a"/></linearGradient>
+  <linearGradient id="rkStick" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a5a32"/><stop offset=".5" stop-color="#e0bf86"/><stop offset="1" stop-color="#7a5a32"/></linearGradient>
   <linearGradient id="bottleGlass" x1="0" y1="0" x2="1" y2="0">
     <stop offset="0" stop-color="#0f5a3a" stop-opacity=".85"/><stop offset=".25" stop-color="#3fae7a" stop-opacity=".55"/>
     <stop offset=".55" stop-color="#1f7a50" stop-opacity=".45"/><stop offset="1" stop-color="#0b4a30" stop-opacity=".9"/>
   </linearGradient>
   <radialGradient id="fuseGlow"><stop offset="0" stop-color="#ffe9a8" stop-opacity=".95"/><stop offset="1" stop-color="#ff9f1c" stop-opacity="0"/></radialGradient>`;
 
-// paper rocket: stick, cylindrical body with gold bands and a printed band, curved nose cone, end cap
+// a festive paper rocket: spiral-wrapped body with gold foil collars and a star badge, a curved foil
+// nose cone, a clay nozzle, and a bamboo stick taped to its side (which stands in the bottle)
 const ROCKET = `
-  <rect x="149" y="64" width="2" height="128" rx="1" fill="url(#rkStick)"/>
-  <path d="M144 62H156V108H144Z" fill="url(#rkBody)"/>
-  <path d="M144 62H156V66.5H144Z M144 102.5H156V107H144Z" fill="url(#rkGold)"/>
-  <path d="M144 76H156V92H144Z" fill="#fff4e0" opacity=".92"/>
-  <path d="M146 79l1.6 1.6l-1.6 1.6l-1.6-1.6Z M150 79l1.6 1.6l-1.6 1.6l-1.6-1.6Z M154 79l1.6 1.6l-1.6 1.6l-1.6-1.6Z
-           M148 85l1.6 1.6l-1.6 1.6l-1.6-1.6Z M152 85l1.6 1.6l-1.6 1.6l-1.6-1.6Z" fill="#d7263d"/>
-  <path d="M144 76H156V77H144Z M144 91H156V92H144Z" fill="#ffc94a"/>
-  <path d="M152.6 62V108" stroke="#fff" stroke-opacity=".22" stroke-width=".8"/>
-  <path d="M143 62.5Q144.5 50 150 40Q155.5 50 157 62.5Z" fill="url(#rkCone)"/>
-  <circle cx="150" cy="39.6" r="1.6" fill="#fff0b8"/>
-  <path d="M144 107H156V111H144Z" fill="#2b140c"/>`;
+  <rect x="159.6" y="66" width="2.4" height="128" rx="1.2" fill="url(#rkStick)"/>
+  <path d="M159.4 120h2.8v1.2h-2.8z M159.4 150h2.8v1.2h-2.8z" fill="#5a3e1e"/>
+  <path d="M141 60H159V104H141Z" fill="#c81e36"/>
+  <path d="M141 60H159V104H141Z" fill="url(#rkSpiral)" opacity=".85"/>
+  <path d="M141 60H159V65.5H141Z M141 98.5H159V104H141Z" fill="url(#rkGold)"/>
+  <path d="M141 62.7H159 M141 101.3H159" stroke="#7a4c0c" stroke-width=".5" stroke-dasharray="1 1.6"/>
+  <circle cx="150" cy="82" r="7.4" fill="#fff6e6"/>
+  <circle cx="150" cy="82" r="7.4" fill="none" stroke="#ffc94a" stroke-width="1"/>
+  <path d="M150.0 77.2L151.2 80.4L154.6 80.5L151.9 82.6L152.8 85.9L150.0 84.0L147.2 85.9L148.1 82.6L145.4 80.5L148.8 80.4Z" fill="#d7263d"/>
+  <path d="M141 60H159V104H141Z" fill="url(#rkShade)"/>
+  <path d="M143 104H157L155 110.5H145Z" fill="#3b1d10"/>
+  <path d="M145 110.5H155" stroke="#000" stroke-opacity=".4" stroke-width="1"/>
+  <path d="M140 61C141 50 146 41 150 35C154 41 159 50 160 61Z" fill="url(#rkCone)"/>
+  <path d="M142.4 54.5H157.6 M144.6 47H155.4" stroke="#7a8196" stroke-width=".8"/>
+  <path d="M140 61C141 50 146 41 150 35C154 41 159 50 160 61Z" fill="url(#rkShade)" opacity=".6"/>
+  <path d="M139.4 60H160.6V62H139.4Z" fill="url(#rkGold)"/>
+  <circle cx="150" cy="34.4" r="1.9" fill="#fff6c8"/>
+  <path d="M157.6 70h5v2.6h-5z M157.6 94h5v2.6h-5z" fill="#ffe08a"/>`;
 
-const BOTTLE = `
+const BOTTLE = `<g transform="translate(11 0)">
   <path d="M133 193Q133 198 138 198H162Q167 198 167 193V160Q167 147 158 139V124H143V139Q133 147 133 160Z" fill="url(#bottleGlass)"/>
   <path d="M141.5 118H158.5V124H141.5Z" fill="#2f8f60" opacity=".9"/>
   <path d="M133 193Q133 198 138 198H162Q167 198 167 193V160Q167 147 158 139V124H143V139Q133 147 133 160Z M141.5 118H158.5V124H141.5Z"
@@ -54,7 +66,7 @@ const BOTTLE = `
   <path d="M138 160Q138 152 144 146" stroke="#e8fff2" stroke-opacity=".7" stroke-width="1.6" stroke-linecap="round" fill="none"/>
   <path d="M138.5 166V188" stroke="#e8fff2" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>
   <path d="M162 164V184" stroke="#e8fff2" stroke-opacity=".18" stroke-width="1.4" stroke-linecap="round"/>
-  <path d="M135 195H165" stroke="#062a1a" stroke-opacity=".6" stroke-width="2"/>`;
+  <path d="M135 195H165" stroke="#062a1a" stroke-opacity=".6" stroke-width="2"/></g>`;
 
 export function createFuse(host) {
   const btn = document.createElement('button');

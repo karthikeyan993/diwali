@@ -4,7 +4,8 @@ import { gsap } from 'gsap';
 import { createFireworks, PALETTES, GOLD } from '../shared/fireworks.js';
 import { audio } from '../shared/audio.js';
 import { createSky } from '../shared/sky.js';
-import { flyName, bigBurst } from '../shared/rocket.js';
+import { bigBurst } from '../shared/rocket.js';
+import { createFuse } from '../shared/fuse.js';
 import { revealLetters, center } from '../shared/letters.js';
 import { buildSkyline } from './skyline.js';
 import { buildToran } from './toran.js';
@@ -124,22 +125,23 @@ async function main() {
     showTimer = setTimeout(go, party ? 1400 : 900);
   }
 
-  /* ---------------- Choose a name → rocket → burst ---------------- */
-  let busy = false;
+  /* ---------------- In the dark: pick a name, then light the fuse ---------------- */
+  const title = $('#title');
+  const fuse = createFuse(document.body);
+  fuse.el.classList.add('away');
+  let busy = false, chosenName = null;
 
-  async function choose(btn) {
-    if (busy) return;
-    busy = true;
+  function setTitle(text) {
+    gsap.fromTo(title, { opacity: 0, y: 14, scale: .96 }, { opacity: 1, y: 0, scale: 1, duration: .5, ease: 'back.out(2)', onStart: () => { title.textContent = text; } });
+  }
+
+  function choose(btn) {
+    if (busy || chosenName) return;
     audio.unlock();
-    stopShow();
-    fx.setEmbers(false);
-
-    const name = btn.dataset.name;
-    const label = btn.querySelector('.p-name');
-    const r = label.getBoundingClientRect();
+    chosenName = btn.dataset.name;
     const c1 = btn.style.getPropertyValue('--c1'), c2 = btn.style.getPropertyValue('--c2');
     gsap.to(btn, { rotateX: 0, rotateY: 0, duration: .3 });
-    $$('.player').forEach((b) => b.classList.add(b === btn ? 'chosen' : 'gone'));
+    $$('.player').forEach((b) => b.classList.add('gone'));
 
     // power-up: the little diya releases a ring of light
     const oc = center(btn.querySelector('.p-diya'));
@@ -147,26 +149,33 @@ async function main() {
     fx.burst(oc.x, oc.y, { type: 'ring', n: 60, speed: 3.2, pal, flash: 60, trail: 0 });
     fx.burst(oc.x, oc.y, { type: 'peony', n: 30, speed: 2, pal, flash: 0, trail: 0 });
 
+    setTitle(`${chosenName}, ready?`);
+    fuse.el.classList.remove('away');
+  }
+
+  // the fire runs along the fuse, the rocket flies, and its burst lights up Chennai
+  async function lightUp() {
+    if (busy || !chosenName) return;
+    busy = true;
+    audio.unlock();
+    await fuse.light(fx);
+    chooser.classList.add('hidden');
     const W = fx.width, H = fx.height;
-    const { x, y } = await flyName(fx, {
-      text: name, x: r.left + r.width / 2, y: r.top + r.height / 2,
-      fontSize: getComputedStyle(label).fontSize, c1, c2,
-      target: { x: W / 2, y: Math.max(H * .27, 110) },
-      reducedMotion: RM, quality: Q,
-      onIgnite: () => chooser.classList.add('hidden'),
-    });
+    const { x, y } = await fuse.launch(fx, { x: W / 2, y: Math.max(H * .27, 110) }, { reducedMotion: RM });
     bigBurst(fx, x, y, later);
     shake();
-
-    later(380, () => revealGreeting(name));
+    document.body.classList.add('lit');
+    lightCity(0xffe0a0, 400);
+    fx.setEmbers(true);
+    later(260, () => revealGreeting(chosenName, { x, y }));
   }
 
   /* ---------------- Greeting ---------------- */
-  function revealGreeting(name) {
+  function revealGreeting(name, from) {
     hint.innerHTML = '&nbsp;';
     gsap.set('.reveal', { opacity: 0, y: 20 });
     greet.classList.remove('hidden');
-    revealLetters(fx, $('#g-top'), $('#g-name'), 'Happy Diwali', name);
+    revealLetters(fx, $('#g-top'), $('#g-name'), 'Happy Diwali', name, undefined, from);
 
 
     gsap.to('.reveal', { opacity: 1, y: 0, duration: .7, ease: 'power2.out', stagger: .2, delay: 1.7 });
@@ -255,10 +264,15 @@ async function main() {
     diyaBtns.forEach((b) => b.classList.remove('out'));
     greet.classList.add('hidden');
     $$('.player').forEach((b) => b.classList.remove('chosen', 'gone'));
+    // back to the dark, with a fresh fuse waiting for the next name
+    document.body.classList.remove('lit');
+    fuse.reset();
+    fuse.el.classList.add('away');
+    title.textContent = 'Who are you?';
     chooser.classList.remove('hidden');
-    fx.setEmbers(true);
+    fx.setEmbers(false);
+    chosenName = null;
     busy = false;
-    startShow('ambient');
   }
 
   /* ---------------- Wiring ---------------- */
@@ -281,6 +295,7 @@ async function main() {
     });
     card.addEventListener('click', () => choose(card));
   });
+  fuse.el.addEventListener('click', lightUp);
   diyaBtns.forEach((b) => b.addEventListener('click', () => lightDiya(b)));
   $('#again').addEventListener('click', reset);
   // tap the sky for a firework; touch (or swipe across) a floating cracker to burst it
@@ -303,7 +318,8 @@ async function main() {
     b.setAttribute('aria-pressed', String(!on));
   });
 
-  startShow('ambient');
+  // Chennai waits in the dark until a rocket is lit
+  fx.setEmbers(false);
 }
 
 main();

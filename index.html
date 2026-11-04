@@ -18,6 +18,8 @@
     <canvas id="sky"></canvas>
     <div id="skyline"></div>
     <div id="toran"></div>
+    <!-- the city starts in darkness; lighting the rocket lifts this veil -->
+    <div id="veil"></div>
   </div>
 
   <!-- WebGL fireworks (PixiJS) -->
@@ -27,8 +29,7 @@
 
   <main>
     <section id="chooser" class="screen">
-      <h1 class="title">Who are you?</h1>
-      <p class="hint">Pick your name to light up the sky</p>
+      <h1 class="title" id="title">Who are you?</h1>
       <div class="players">
         <button class="player" data-name="Dishanth" style="--n:0;--silk:#0f7b83;--silk2:#073b47;--c1:#ffd166;--c2:#2ee6d6">
           <span class="p-diya" aria-hidden="true"><i class="p-flame"></i><i class="p-bowl"></i></span>
