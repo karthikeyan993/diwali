@@ -5,8 +5,9 @@ import { createFireworks, PALETTES } from '../shared/fireworks.js';
 import { audio } from '../shared/audio.js';
 import { createSky } from '../shared/sky.js';
 import { flyName, bigBurst } from '../shared/rocket.js';
-import { revealLetters, center } from '../shared/letters.js';
-import { buildHarbour, WY, DECK, topChord, OPERA_TIP } from './harbour.js';
+import { revealLetters } from '../shared/letters.js';
+import { createFuse } from '../shared/fuse.js';
+import { buildHarbour, WY, DECK, topChord } from './harbour.js';
 
 const NAME = 'Yashik';
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -15,7 +16,7 @@ const $ = (s) => document.querySelector(s);
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (a) => a[(Math.random() * a.length) | 0];
 
-const startScreen = $('#start'), greet = $('#greet'), world = $('#world'), launchBtn = $('#launch');
+const startScreen = $('#start'), greet = $('#greet'), world = $('#world');
 const SPARKLE = [0x4ff0ff, 0xff6fc8, 0xffffff, 0xb9a6ff];
 const SYD_SHELLS = [[0x4ff0ff, 0xffffff, 0x3b6bff], [0xff5fb8, 0xffffff, 0xb44dff], [0xffd166, 0xffffff, 0xff9f1c], ...PALETTES];
 
@@ -150,7 +151,8 @@ async function main() {
     }
   }
 
-  /* ---------------- Yashik's rocket rises from the Opera House ---------------- */
+  /* ---------------- In the dark: light the fuse, the rocket becomes Yashik's name, the harbour lights up ---------------- */
+  const fuse = createFuse(document.body);
   let busy = false;
   async function lightUp() {
     if (busy) return;
@@ -158,14 +160,10 @@ async function main() {
     audio.unlock();
     stopShow();
 
-    const bc = center(launchBtn);
-    fx.burst(bc.x, bc.y, { type: 'ring', n: 60, speed: 3.2, pal: [0x4ff0ff, 0xff5fb8, 0xffffff], flash: 60, trail: 0 });
-    launchBtn.classList.add('fired');
-
-    const tip = city.toScreen(...OPERA_TIP);
+    const at = await fuse.light(fx);
     const W = fx.width, H = fx.height;
     const { x, y } = await flyName(fx, {
-      text: NAME, x: Math.min(Math.max(tip.x, 60), W - 60), y: Math.min(tip.y - 16, H - 60),
+      text: NAME, x: at.x, y: at.y,
       fontSize: '1.7rem', fontFamily: "'Baloo 2', system-ui, sans-serif", c1: '#4ff0ff', c2: '#ff5fb8',
       target: { x: W / 2, y: Math.max(H * .22, 100) },
       reducedMotion: RM, quality: Q,
@@ -173,6 +171,9 @@ async function main() {
     });
     bigBurst(fx, x, y, later);
     shake();
+    // everything lights up: the veil lifts, and the city glows in the burst
+    document.body.classList.add('lit');
+    lightCity(0xfff1c2, 400);
     later(380, revealGreeting);
   }
 
@@ -189,14 +190,14 @@ async function main() {
     stopShow();
     fx.stopGround();
     greet.classList.add('hidden');
-    launchBtn.classList.remove('fired');
+    document.body.classList.remove('lit');
+    fuse.reset();
     startScreen.classList.remove('hidden');
     busy = false;
-    startShow('ambient');
   }
 
   /* ---------------- wiring ---------------- */
-  launchBtn.addEventListener('click', lightUp);
+  fuse.el.addEventListener('click', lightUp);
   $('#again').addEventListener('click', reset);
   greet.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return;
@@ -213,7 +214,7 @@ async function main() {
     b.setAttribute('aria-pressed', String(!on));
   });
 
-  startShow('ambient');
+  // the harbour waits in the dark until the fuse is lit
 }
 
 main();

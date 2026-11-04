@@ -18,6 +18,8 @@
     <canvas id="sky"></canvas>
     <div id="harbour"></div>
     <div id="shore"></div>
+    <!-- the harbour starts in darkness; lighting the rocket lifts this veil -->
+    <div id="veil"></div>
   </div>
 
   <!-- WebGL fireworks (PixiJS), reflected in the harbour -->
@@ -29,12 +31,6 @@
     <section id="start" class="screen">
       <p class="eyebrow"><span>✦</span> Diwali 2026 · Sydney Nights <span>✦</span></p>
       <h1 class="title">Yashik, ready?</h1>
-      <p class="hint">The whole harbour is waiting for your signal</p>
-      <button class="launch" id="launch">
-        <span class="l-spark" aria-hidden="true"></span>
-        <span class="l-label">Light up Sydney</span>
-        <span class="l-go" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      </button>
     </section>
 
     <section id="greet" class="screen hidden" aria-live="polite">
