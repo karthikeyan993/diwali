@@ -4,7 +4,7 @@ import { gsap } from 'gsap';
 import { createFireworks, PALETTES } from '../shared/fireworks.js';
 import { audio } from '../shared/audio.js';
 import { createSky } from '../shared/sky.js';
-import { flyName, bigBurst } from '../shared/rocket.js';
+import { bigBurst } from '../shared/rocket.js';
 import { revealLetters } from '../shared/letters.js';
 import { createFuse } from '../shared/fuse.js';
 import { buildHarbour, WY, DECK, topChord } from './harbour.js';
@@ -160,27 +160,22 @@ async function main() {
     audio.unlock();
     stopShow();
 
-    const at = await fuse.light(fx);
+    await fuse.light(fx);
+    startScreen.classList.add('hidden');
     const W = fx.width, H = fx.height;
-    const { x, y } = await flyName(fx, {
-      text: NAME, x: at.x, y: at.y,
-      fontSize: '1.7rem', fontFamily: "'Baloo 2', system-ui, sans-serif", c1: '#4ff0ff', c2: '#ff5fb8',
-      target: { x: W / 2, y: Math.max(H * .22, 100) },
-      reducedMotion: RM, quality: Q,
-      onIgnite: () => startScreen.classList.add('hidden'),
-    });
+    const { x, y } = await fuse.launch(fx, { x: W / 2, y: Math.max(H * .22, 100) }, { reducedMotion: RM });
     bigBurst(fx, x, y, later);
     shake();
     // everything lights up: the veil lifts, and the city glows in the burst
     document.body.classList.add('lit');
     lightCity(0xfff1c2, 400);
-    later(380, revealGreeting);
+    later(260, () => revealGreeting({ x, y }));
   }
 
-  function revealGreeting() {
+  function revealGreeting(from) {
     gsap.set('.reveal', { opacity: 0, y: 20 });
     greet.classList.remove('hidden');
-    revealLetters(fx, $('#g-top'), $('#g-name'), 'Happy Diwali', NAME, SPARKLE);
+    revealLetters(fx, $('#g-top'), $('#g-name'), 'Happy Diwali', NAME, SPARKLE, from);
     gsap.to('.reveal', { opacity: 1, y: 0, duration: .7, ease: 'power2.out', stagger: .2, delay: 1.7 });
     startShow('party');
     later(900, startGround);

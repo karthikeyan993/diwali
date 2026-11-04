@@ -22,7 +22,7 @@ export function splitInto(el, text) {
 
 /** Animate the greeting in: top line pops, the name's letters fly in and each lands with a tiny burst.
  *  The name's finish (gold foil, neon chrome...) comes from the theme's --name-* CSS variables. */
-export function revealLetters(fx, topEl, nameEl, topText, name, sparkle = [...GOLD, 0xffffff]) {
+export function revealLetters(fx, topEl, nameEl, topText, name, sparkle = [...GOLD, 0xffffff], from = null) {
   const top = splitInto(topEl, topText);
   const letters = splitInto(nameEl, name + '!');
 
@@ -31,7 +31,12 @@ export function revealLetters(fx, topEl, nameEl, topText, name, sparkle = [...GO
     { opacity: 1, scale: 1, y: 0, rotation: 0, filter: 'blur(0px)', duration: .9, ease: 'back.out(2.2)', stagger: .055 });
 
   gsap.fromTo(letters,
-    { opacity: 0, scale: 0, x: () => rand(-90, 90), y: () => rand(-140, -40), rotation: () => rand(-120, 120) },
+    {
+      opacity: 0, scale: 0, rotation: () => rand(-120, 120),
+      // from a burst point the letters fly out of the explosion; otherwise they scatter in from nearby
+      x: (i, t) => (from ? from.x - center(t).x + rand(-14, 14) : rand(-90, 90)),
+      y: (i, t) => (from ? from.y - center(t).y + rand(-14, 14) : rand(-140, -40)),
+    },
     {
       opacity: 1, scale: 1, x: 0, y: 0, rotation: 0, duration: 1.3, ease: 'elastic.out(1, .55)', delay: .45,
       stagger: {
