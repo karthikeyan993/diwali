@@ -1,6 +1,6 @@
 // WebGL fireworks engine built on PixiJS.
 // Every particle is an additive-blended glow sprite, stretched along its velocity so it reads as a streak.
-import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Texture, Ticker } from 'pixi.js';
 import { audio } from './audio.js';
 
 export const PALETTES = [
@@ -41,15 +41,22 @@ function noopEngine() {
   return { spark: noop, burst: noop, launchShell: noop, setEmbers: noop, flowerPot: noop, chakra: noop, pop: noop, ladi: noop, stopGround: noop, spawnTarget: noop, hit: () => false, clearTargets: noop, targetCount: 0, width: innerWidth, height: innerHeight, scale: 1 };
 }
 
-export async function createFireworks(host, { quality = 1, onLight = null, onTargetBurst = null } = {}) {
+export async function createFireworks(host, { quality: baseQuality = 1, onLight = null, onTargetBurst = null } = {}) {
+  // Particle counts scale with `quality`, which adapts to the device so the frame rate holds.
+  const smallCores = (navigator.hardwareConcurrency || 8) <= 4;
+  let quality = baseQuality * (smallCores ? .7 : 1);
+  const maxQuality = quality;
   const app = new Application();
+  // Fireworks are soft glows, so a lower backing resolution is invisible but saves a lot of GPU fill.
+  const bigScreen = innerWidth * innerHeight > 900000;
   try {
     await app.init({
+      autoStart: false, // we drive frames ourselves and skip drawing when the sky is empty
       resizeTo: window,
       backgroundAlpha: 0,
       antialias: false,
       autoDensity: true,
-      resolution: Math.min(window.devicePixelRatio || 1, 2),
+      resolution: Math.min(window.devicePixelRatio || 1, bigScreen ? 1 : 1.25),
       preference: 'webgl',
       powerPreference: 'high-performance',
     });
@@ -67,7 +74,7 @@ export async function createFireworks(host, { quality = 1, onLight = null, onTar
   app.stage.addChild(groundLayer, targetLayer, layer);
 
   const pool = [], parts = [], shells = [], flashes = [], emitters = [];
-  const MAX = Math.round(3200 * quality) + 300;
+  const maxParts = () => 2600 * quality + 300;
   let embers = true;
 
   const W = () => app.screen.width;
@@ -88,7 +95,7 @@ export async function createFireworks(host, { quality = 1, onLight = null, onTar
   function release(s) { s.visible = false; pool.push(s); }
 
   function spark(x, y, vx, vy, color, o = {}) {
-    if (parts.length >= MAX) return;
+    if (parts.length >= maxParts()) return;
     const sp = sprite();
     sp.tint = color;
     parts.push({
@@ -364,11 +371,21 @@ export async function createFireworks(host, { quality = 1, onLight = null, onTar
     }
   }
 
-  app.ticker.add((ticker) => {
+  const ticker = new Ticker();
+  ticker.maxFPS = 60; // don't double the work on 120 Hz screens
+  let drewLast = false;
+  let slowFrames = 0, fastFrames = 0;
+  ticker.add(() => {
     const k = Math.min(ticker.deltaTime, 3);
+    // adaptive quality: if frames run long (under ~50 fps) while busy, thin out the particles
+    if (parts.length > 200) {
+      if (ticker.deltaMS > 20) { slowFrames++; fastFrames = 0; } else { fastFrames++; slowFrames = Math.max(0, slowFrames - 1); }
+      if (slowFrames > 20) { quality = Math.max(.3, quality * .8); slowFrames = 0; }
+      if (fastFrames > 240 && quality < maxQuality) { quality = Math.min(maxQuality, quality * 1.1); fastFrames = 0; }
+    }
     const w = W(), h = H();
 
-    if (embers && Math.random() < .22 * k * quality) {
+    if (embers && Math.random() < .1 * k * quality) {
       spark(rand(0, w), h + 4, rand(-.3, .3), rand(-1.6, -.7), pick(FLAME),
         { g: -.004, f: .995, decay: rand(.004, .008), size: rand(1.1, 2.3), tw: true });
     }
@@ -438,7 +455,13 @@ export async function createFireworks(host, { quality = 1, onLight = null, onTar
       p.sp.scale.set(b * (1 + speed * .5), b);
       p.sp.alpha = p.tw && Math.random() < .45 ? p.life * .15 : p.life;
     }
+
+    // only hand a frame to the GPU when something is on screen (plus one to clear the last one)
+    const active = parts.length || shells.length || flashes.length || emitters.length || targets.length;
+    if (active || drewLast) app.render();
+    drewLast = !!active;
   });
+  ticker.start();
 
   return {
     spark, burst, launchShell, flowerPot, chakra, pop, ladi, stopGround, spawnTarget, hit, clearTargets,

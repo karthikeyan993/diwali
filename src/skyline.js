@@ -134,13 +134,20 @@ export function buildSkyline(el) {
   const l = lighthouse(985);
   const s = santhome(1110);
   const front = [...ripon(150), ...lic(380), ...g, ...c.d, ...l.d, ...s.d];
-  const lightSvg = lights.map(([x, y], i) => `<circle class="sl" cx="${f(x)}" cy="${f(y)}" r="1.15" style="--d:${(i % 2) * -.9}s"/>`).join('');
+  // Everything is drawn once. Anything that changes over time lives in its own overlay <svg>
+  // whose CSS opacity is animated, so the browser only re-composites and never re-paints the city.
+  const dot = ([x, y]) => `<circle cx="${f(x)}" cy="${f(y)}" r="1.15"/>`;
+  const lightsA = lights.filter((_, i) => i % 2 === 0).map(dot).join('');
+  const lightsB = lights.filter((_, i) => i % 2 === 1).map(dot).join('');
+  const rect = ([x, y, w, h, r]) => `<rect x="${f(x)}" y="${f(y)}" width="${w}" height="${h}" rx=".6" opacity="${f(.35 + r * .55)}"/>`;
+  const steadyWin = windows.filter((w) => w[4] <= .82).map(rect).join('');
+  // twinkling windows ride on the two serial-light layers, so there are only three layers in total
+  const twinkle = windows.filter((w) => w[4] > .82);
+  const twinkleA = twinkle.filter((_, i) => i % 2 === 0).map(rect).join('');
+  const twinkleB = twinkle.filter((_, i) => i % 2 === 1).map(rect).join('');
+  const layer = (cls, body) => `<svg class="${cls}" viewBox="0 0 1200 ${G}" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${body}</svg>`;
 
-  const winSvg = windows.map(([x, y, w, h, r]) =>
-    `<rect x="${f(x)}" y="${f(y)}" width="${w}" height="${h}" rx=".6" opacity="${f(.35 + r * .55)}"${r > .82 ? ` class="tw" style="animation-delay:${f(-r * 9)}s"` : ''}/>`).join('');
-
-  el.innerHTML = `
-<svg viewBox="0 0 1200 ${G}" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  el.innerHTML = layer('city-base', `
   <defs>
     <linearGradient id="cityFill" gradientUnits="userSpaceOnUse" x1="0" y1="70" x2="0" y2="${G}">
       <stop offset="0" stop-color="#2b1d60"/><stop offset=".55" stop-color="#160e3a"/><stop offset="1" stop-color="#07041a"/>
@@ -154,29 +161,25 @@ export function buildSkyline(el) {
     <linearGradient id="doorGrad" gradientUnits="userSpaceOnUse" x1="0" y1="266" x2="0" y2="${G}">
       <stop offset="0" stop-color="#ffd27a"/><stop offset=".6" stop-color="#ff9a3c"/><stop offset="1" stop-color="#c2521c"/>
     </linearGradient>
-    <linearGradient id="beamGrad" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#fff1c2" stop-opacity=".55"/><stop offset="1" stop-color="#fff1c2" stop-opacity="0"/>
-    </linearGradient>
     <filter id="cityGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     <path id="cityFront" d="${front.join('')}"/>
   </defs>
   <path d="${back.join('')}" fill="#120b30" opacity=".85"/>
-  <path class="beam-l" style="transform-origin:${l.lamp[0]}px ${l.lamp[1]}px" d="M${l.lamp[0]} ${l.lamp[1]}L${l.lamp[0] + 520} ${l.lamp[1] - 34}L${l.lamp[0] + 520} ${l.lamp[1] + 30}Z" fill="url(#beamGrad)"/>
   <use href="#cityFront" fill="url(#cityFill)" stroke="url(#cityRim)" stroke-width="1.1"/>
-  <use id="cityLitLayer" href="#cityFront" fill="url(#cityLit)" opacity="0"/>
-  <g class="city-windows" fill="#ffcf6b">${winSvg}</g>
+  <g fill="#ffcf6b">${steadyWin}</g>
   <path d="${door.join('')}" fill="url(#doorGrad)" filter="url(#cityGlow)" opacity=".9"/>
-  <g fill="#ffe7a0" filter="url(#cityGlow)">${lightSvg}</g>
   <g filter="url(#cityGlow)">
     <circle cx="${c.clock[0]}" cy="${c.clock[1]}" r="9" fill="#ffe9b0" opacity=".9"/>
     <circle cx="${s.rose[0]}" cy="${s.rose[1]}" r="5" fill="#ffb3d9" opacity=".7"/>
-    <rect x="${l.lamp[0] - 6}" y="${l.lamp[1] - 7}" width="12" height="13" fill="#fff1c2" class="lamp"/>
-  </g>
-</svg>`;
+    <rect x="${l.lamp[0] - 6}" y="${l.lamp[1] - 7}" width="12" height="13" fill="#fff1c2"/>
+  </g>`)
+    + layer('city-lit', `<use href="#cityFront" fill="url(#cityLit)"/>`)
+    + layer('city-lights a', `<g fill="#ffcf6b">${twinkleA}</g><g fill="#ffe7a0" filter="url(#cityGlow)">${lightsA}</g>`)
+    + layer('city-lights b', `<g fill="#ffcf6b">${twinkleB}</g><g fill="#ffe7a0" filter="url(#cityGlow)">${lightsB}</g>`);
 
   const stop = el.querySelector('#cityLitStop');
   return {
-    lit: el.querySelector('#cityLitLayer'),
+    lit: el.querySelector('.city-lit'),
     setLightColor(hex) { stop.setAttribute('stop-color', hex); stop.nextElementSibling.setAttribute('stop-color', hex); },
   };
 }

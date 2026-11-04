@@ -31,26 +31,26 @@ export function buildToran(el, W) {
   let strands = '', leaves = '';
 
   for (let i = 0; i < n; i++) {
-    // marigold strand between each pair of leaves, lengths rising and falling like swags
+    // marigold strand between each pair of leaves, lengths rising and falling like swags.
+    // Each strand is its own little <svg> so its sway is a cheap GPU transform, not an SVG repaint.
     const x = i * gap + gap / 2;
     const len = 3 + Math.round(3 * (.5 + .5 * Math.cos((i / 6) * Math.PI * 2)));
-    let s = `<line x1="${x}" y1="4" x2="${x}" y2="${f(10 + len * 8.6)}" stroke="#c99a3a" stroke-width=".8"/>`;
+    const h = f(22 + len * 8.6);
+    let s = `<line x1="0" y1="4" x2="0" y2="${f(10 + len * 8.6)}" stroke="#c99a3a" stroke-width=".8"/>`;
     for (let k = 0; k < len; k++) {
-      const y = 12 + k * 8.6;
-      s += `<use href="#mg${(i + k) % 2 ? 'O' : 'Y'}" x="${f(x - 5.8)}" y="${f(y - 5.8)}" width="11.6" height="11.6"/>`;
+      s += `<use href="#mg${(i + k) % 2 ? 'O' : 'Y'}" x="-5.8" y="${f(12 + k * 8.6 - 5.8)}" width="11.6" height="11.6"/>`;
     }
-    s += `<use href="#bell" x="${f(x - 4)}" y="${f(10 + len * 8.6)}" width="8" height="10"/>`;
-    strands += `<g class="strand" style="--t:${f(2.6 + (i % 5) * .35)}s;--d:${f(-(i % 7) * .45)}s">${s}</g>`;
+    s += `<use href="#bell" x="-4" y="${f(10 + len * 8.6)}" width="8" height="10"/>`;
+    strands += `<svg class="strand" style="left:${x - 7}px;height:${h}px;--t:${f(2.6 + (i % 5) * .35)}s;--d:${f(-(i % 7) * .45)}s" width="14" viewBox="-7 0 14 ${h}" xmlns="http://www.w3.org/2000/svg">${s}</svg>`;
 
     // mango leaf hanging from the rope
     const lx = i * gap, rot = (i % 2 ? 7 : -7);
     leaves += `<use href="#leaf" x="${lx - 6}" y="3" width="12" height="28" transform="rotate(${rot} ${lx} 4)"/>`;
   }
 
-  el.innerHTML = `
-<svg viewBox="0 0 ${W} 96" preserveAspectRatio="xMinYMin meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  el.innerHTML = `${strands}
+<svg class="toran-base" viewBox="0 0 ${W} 40" preserveAspectRatio="xMinYMin meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   ${DEFS}
-  ${strands}
   ${leaves}
   <rect x="0" y="1.5" width="${W}" height="4" fill="#8a5a1a"/>
   <rect x="0" y="1.5" width="${W}" height="4" fill="none" stroke="#e0b25a" stroke-width="1" stroke-dasharray="3 2" opacity=".8"/>

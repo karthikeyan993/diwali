@@ -4,6 +4,7 @@ import { createFireworks, PALETTES, MULTI, FLAME, GOLD } from './fireworks.js';
 import { audio } from './audio.js';
 import { buildSkyline } from './skyline.js';
 import { buildToran } from './toran.js';
+import { createSky } from './sky.js';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const Q = RM ? 0.45 : 1;
@@ -16,24 +17,6 @@ const chooser = $('#chooser'), greet = $('#greet'), world = $('#world'), hint = 
 const diyaBtns = $$('.diya-btn');
 
 /* ---------------- Sky decoration ---------------- */
-function makeStars() {
-  const n = Math.round(Math.min(110, (innerWidth * innerHeight) / 5000));
-  let html = '';
-  for (let i = 0; i < n; i++) {
-    html += `<i class="star" style="left:${rand(0, 100)}%;top:${rand(0, 72)}%;--s:${rand(1, 2.6).toFixed(1)}px;--d:${rand(2, 5).toFixed(1)}s;--delay:${rand(-5, 0).toFixed(1)}s"></i>`;
-  }
-  $('#stars').innerHTML = html;
-}
-
-function makeBokeh() {
-  const colors = ['#ffcf6b', '#ff4f9a', '#7b5cff', '#3be8ff', '#ff9f1c'];
-  let html = '';
-  for (let i = 0; i < 9; i++) {
-    html += `<i class="bokeh" style="left:${rand(-10, 90)}%;top:${rand(5, 85)}%;--s:${rand(50, 150).toFixed(0)}px;--c:${pick(colors)};--o:${rand(.12, .3).toFixed(2)};--t:${rand(10, 20).toFixed(0)}s;--delay:${rand(-20, 0).toFixed(0)}s;--dx:${rand(-60, 60).toFixed(0)}px;--dy:${rand(-80, 40).toFixed(0)}px"></i>`;
-  }
-  $('#bokeh').innerHTML = html;
-}
-
 const hexNum = (c) => parseInt(c.trim().slice(1), 16);
 
 const drawToran = () => buildToran($('#toran'), innerWidth);
@@ -45,7 +28,9 @@ function shake() {
   world.classList.add('shake');
 }
 
-function splitInto(el, text) {
+const RAINBOW = ['#ffd166', '#ff9f1c', '#ff5f8f', '#e45bff', '#9b7bff', '#4fc3ff', '#2ee6c5', '#9dff6a'];
+
+function splitInto(el, text, colors = null) {
   el.innerHTML = '';
   el.setAttribute('aria-label', text);
   return [...text].map((ch, i) => {
@@ -53,6 +38,7 @@ function splitInto(el, text) {
     s.className = 'ch';
     s.setAttribute('aria-hidden', 'true');
     s.style.setProperty('--i', i);
+    if (colors) s.style.setProperty('--c', colors[i % colors.length]);
     s.textContent = ch === ' ' ? ' ' : ch;
     el.appendChild(s);
     return s;
@@ -62,22 +48,20 @@ function splitInto(el, text) {
 const center = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
 
 async function main() {
-  makeStars();
-  makeBokeh();
+  createSky($('#sky'), { reducedMotion: RM });
   drawToran();
   addEventListener('resize', drawToran);
 
   // Chennai skyline that catches the light of every burst
   const city = buildSkyline($('#skyline'));
-  let cityGlow = { v: 0 };
+  // the glow layer only changes CSS opacity, which the GPU composites without repainting the city
   const lightCity = (color, strength) => {
     const target = Math.min(.75, .18 + strength / 220);
-    if (target < cityGlow.v) return;
+    if (target < +gsap.getProperty(city.lit, 'opacity')) return;
     city.setLightColor('#' + color.toString(16).padStart(6, '0'));
-    gsap.killTweensOf(cityGlow);
-    cityGlow.v = target;
-    city.lit.setAttribute('opacity', target);
-    gsap.to(cityGlow, { v: 0, duration: 1.6, ease: 'power2.out', onUpdate: () => city.lit.setAttribute('opacity', cityGlow.v.toFixed(3)) });
+    gsap.killTweensOf(city.lit);
+    gsap.set(city.lit, { opacity: target });
+    gsap.to(city.lit, { opacity: 0, duration: 1.6, ease: 'power2.out' });
   };
 
   let score = 0;
@@ -97,7 +81,7 @@ async function main() {
   function startTargets() {
     stopTargets();
     const loop = () => {
-      if (!document.hidden && fx.targetCount < 3) fx.spawnTarget();
+      if (!document.hidden && !idle() && fx.targetCount < 3) fx.spawnTarget();
       targetTimer = setTimeout(loop, rand(1100, 2200));
     };
     loop();
@@ -125,10 +109,15 @@ async function main() {
     later(300, () => fx.flowerPot(W * .2));
     later(700, () => fx.flowerPot(W * .8));
     later(1500, () => fx.chakra(W * .5));
-    const loop = () => { if (!document.hidden) groundAct(); groundTimer = setTimeout(loop, rand(1800, 3400)); };
+    const loop = () => { if (!document.hidden && !idle()) groundAct(); groundTimer = setTimeout(loop, rand(1800, 3400)); };
     groundTimer = setTimeout(loop, 4200);
   }
   function stopGroundShow() { clearTimeout(groundTimer); }
+
+  /* ---------------- Idle calm: ease off if nobody has touched the screen for a while ---------------- */
+  let lastInput = performance.now();
+  const idle = () => performance.now() - lastInput > 45000;
+  for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { lastInput = performance.now(); }, { passive: true });
 
   /* ---------------- Background shows ---------------- */
   let showTimer = null;
@@ -147,7 +136,7 @@ async function main() {
         fx.launchShell(rand(W * .12, W * .88), rand(H * .08, H * (party ? .42 : .3)),
           party ? {} : { silent: true, n: 70, speed: 5, flash: 40 });
       }
-      showTimer = setTimeout(go, party ? rand(700, 1500) / Q : rand(1800, 3200));
+      showTimer = setTimeout(go, party ? (idle() ? rand(3500, 5000) : rand(700, 1500) / Q) : rand(1800, 3200));
     };
     showTimer = setTimeout(go, party ? 1400 : 900);
   }
@@ -246,7 +235,8 @@ async function main() {
   /* ---------------- Greeting ---------------- */
   function revealGreeting(name) {
     const top = splitInto($('#g-top'), 'Happy Diwali');
-    const letters = splitInto($('#g-name'), name + '!');
+    const shift = (Math.random() * RAINBOW.length) | 0;
+    const letters = splitInto($('#g-name'), name + '!', [...RAINBOW.slice(shift), ...RAINBOW.slice(0, shift)]);
     hint.innerHTML = '&nbsp;';
     gsap.set('.reveal', { opacity: 0, y: 20 });
     greet.classList.remove('hidden');
