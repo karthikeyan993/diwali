@@ -1,6 +1,6 @@
 # Happy Diwali 🪔
 
-A mobile-first Diwali greeting for Yashik, Dishanth and Pravya.
+A mobile-first Diwali greeting for Dishanth and Pravya.
 
 1. **Who are you?** Tap your name.
 2. Your name lights up and launches like a rocket, then bursts into fireworks.
@@ -24,4 +24,4 @@ npm run dev
 `netlify.toml` already sets the build (`npm run build`, publish `dist`, Node 22).
 In Netlify: **Add new site → Import an existing project → GitHub →** pick this repo, branch `main`, and deploy.
 
-To change the names, edit the three `.name` buttons in `index.html`.
+To change the names, edit the `.card` buttons in `index.html`.

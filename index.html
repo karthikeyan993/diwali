@@ -4,17 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0620">
-  <meta name="description" content="A Diwali surprise for Yashik, Dishanth and Pravya">
+  <meta name="description" content="A Diwali surprise for Dishanth and Pravya">
   <title>Happy Diwali</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪔</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;800&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
 
   <!-- Sky decoration (stars + marigold garland) -->
   <div id="world" aria-hidden="true">
+    <div class="beams"><i class="beam b1"></i><i class="beam b2"></i><i class="beam b3"></i></div>
+    <div id="bokeh"></div>
     <div id="stars"></div>
     <svg id="garland" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -32,13 +34,34 @@
 
   <main>
     <section id="chooser" class="screen">
-      <p class="eyebrow">✨ A Diwali surprise ✨</p>
+      <p class="eyebrow"><span>✦</span> Diwali 2026 <span>✦</span></p>
       <h1 class="title">Who are you?</h1>
-      <p class="hint">Tap your name</p>
-      <div class="names">
-        <button class="name" data-name="Yashik"   data-icon="🎆" style="--n:0;--c1:#ff9f1c;--c2:#ff3d7f">Yashik</button>
-        <button class="name" data-name="Dishanth" data-icon="🚀" style="--n:1;--c1:#7b5cff;--c2:#21c7e8">Dishanth</button>
-        <button class="name" data-name="Pravya"   data-icon="🪔" style="--n:2;--c1:#ff4fa3;--c2:#9b3cff">Pravya</button>
+      <p class="hint">Pick your name to light up the sky</p>
+      <div class="cards">
+        <button class="card" data-name="Dishanth" style="--n:0;--c1:#3be8ff;--c2:#7b5cff">
+          <span class="card-inner">
+            <span class="orb" aria-hidden="true">
+              <span class="orb-core"></span>
+              <span class="orb-ring"></span>
+              <span class="orb-ring r2"></span>
+              <span class="orb-letter">D</span>
+            </span>
+            <span class="card-name">Dishanth</span>
+            <span class="card-cta" aria-hidden="true">Tap to launch</span>
+          </span>
+        </button>
+        <button class="card" data-name="Pravya" style="--n:1;--c1:#ffcf6b;--c2:#ff4f9a">
+          <span class="card-inner">
+            <span class="orb" aria-hidden="true">
+              <span class="orb-core"></span>
+              <span class="orb-ring"></span>
+              <span class="orb-ring r2"></span>
+              <span class="orb-letter">P</span>
+            </span>
+            <span class="card-name">Pravya</span>
+            <span class="card-cta" aria-hidden="true">Tap to launch</span>
+          </span>
+        </button>
       </div>
     </section>
 

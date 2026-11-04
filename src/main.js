@@ -23,6 +23,17 @@ function makeStars() {
   $('#stars').innerHTML = html;
 }
 
+function makeBokeh() {
+  const colors = ['#ffcf6b', '#ff4f9a', '#7b5cff', '#3be8ff', '#ff9f1c'];
+  let html = '';
+  for (let i = 0; i < 9; i++) {
+    html += `<i class="bokeh" style="left:${rand(-10, 90)}%;top:${rand(5, 85)}%;--s:${rand(50, 150).toFixed(0)}px;--c:${pick(colors)};--o:${rand(.12, .3).toFixed(2)};--t:${rand(10, 20).toFixed(0)}s;--delay:${rand(-20, 0).toFixed(0)}s;--dx:${rand(-60, 60).toFixed(0)}px;--dy:${rand(-80, 40).toFixed(0)}px"></i>`;
+  }
+  $('#bokeh').innerHTML = html;
+}
+
+const hexNum = (c) => parseInt(c.trim().slice(1), 16);
+
 function drawGarland() {
   const W = innerWidth;
   const n = Math.max(3, Math.round(W / 120));
@@ -75,6 +86,7 @@ const center = (el) => { const r = el.getBoundingClientRect(); return { x: r.lef
 
 async function main() {
   makeStars();
+  makeBokeh();
   drawGarland();
   addEventListener('resize', drawGarland);
 
@@ -113,14 +125,24 @@ async function main() {
     fx.setEmbers(false);
 
     const name = btn.dataset.name;
-    const r = btn.getBoundingClientRect();
-    $$('.name').forEach((b) => b.classList.add(b === btn ? 'chosen' : 'gone'));
+    const label = btn.querySelector('.card-name');
+    const r = label.getBoundingClientRect();
+    const c1 = btn.style.getPropertyValue('--c1'), c2 = btn.style.getPropertyValue('--c2');
+    gsap.to(btn, { rotateX: 0, rotateY: 0, duration: .3 });
+    $$('.card').forEach((b) => b.classList.add(b === btn ? 'chosen' : 'gone'));
+
+    // power-up: the orb releases a ring of light in the card's colours
+    const oc = center(btn.querySelector('.orb'));
+    const pal = [hexNum(c1), hexNum(c2), 0xffffff];
+    fx.burst(oc.x, oc.y, { type: 'ring', n: 60, speed: 3.2, pal, flash: 60, trail: 0 });
+    fx.burst(oc.x, oc.y, { type: 'peony', n: 30, speed: 2, pal, flash: 0, trail: 0 });
 
     const el = document.createElement('div');
     el.className = 'rocket';
     el.textContent = name;
-    el.style.setProperty('--c1', btn.style.getPropertyValue('--c1'));
-    el.style.setProperty('--c2', btn.style.getPropertyValue('--c2'));
+    el.style.fontSize = getComputedStyle(label).fontSize;
+    el.style.setProperty('--c1', c1);
+    el.style.setProperty('--c2', c2);
     document.body.appendChild(el);
     const ew = el.offsetWidth, eh = el.offsetHeight;
     const pos = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
@@ -283,7 +305,7 @@ async function main() {
     gsap.to('.halo', { opacity: 1, duration: .5 });
     diyaBtns.forEach((b) => b.classList.remove('out'));
     greet.classList.add('hidden');
-    $$('.name').forEach((b) => b.classList.remove('chosen', 'gone'));
+    $$('.card').forEach((b) => b.classList.remove('chosen', 'gone'));
     chooser.classList.remove('hidden');
     fx.setEmbers(true);
     busy = false;
@@ -291,7 +313,25 @@ async function main() {
   }
 
   /* ---------------- Wiring ---------------- */
-  $$('.name').forEach((b) => b.addEventListener('click', () => choose(b)));
+  $$('.card').forEach((card) => {
+    // light follows the finger / cursor, and the card tilts toward it
+    const track = (e) => {
+      if (busy) return;
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
+      card.style.setProperty('--mx', `${px * 100}%`);
+      card.style.setProperty('--my', `${py * 100}%`);
+      if (!RM) gsap.to(card, { rotateY: (px - .5) * 16, rotateX: (.5 - py) * 16, transformPerspective: 700, duration: .4, ease: 'power2.out' });
+    };
+    card.addEventListener('pointermove', track);
+    card.addEventListener('pointerdown', track);
+    card.addEventListener('pointerleave', () => {
+      card.style.removeProperty('--mx');
+      card.style.removeProperty('--my');
+      gsap.to(card, { rotateX: 0, rotateY: 0, duration: .8, ease: 'elastic.out(1, .5)' });
+    });
+    card.addEventListener('click', () => choose(card));
+  });
   diyaBtns.forEach((b) => b.addEventListener('click', () => lightDiya(b)));
   $('#again').addEventListener('click', reset);
   greet.addEventListener('pointerdown', (e) => {
