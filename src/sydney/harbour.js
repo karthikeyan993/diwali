@@ -13,17 +13,36 @@ const windows = [];
 const win = (x, y, w = 2.6, h = 3.4, p = .3) => { if (rnd() < p) windows.push([x, y, w, h, rnd()]); };
 
 /* ---------- CBD towers + Sydney Tower ---------- */
-const TOWERS = [[440, 26, 156], [468, 20, 132], [492, 30, 118], [527, 22, 146], [552, 34, 104], [590, 24, 126], [660, 28, 108],
-  [692, 22, 136], [718, 30, 96], [752, 20, 128], [776, 26, 142], [806, 34, 152], [846, 22, 170], [872, 28, 162], [904, 24, 178]];
+// [x, width, top, crown]: crown shapes give the skyline recognisable silhouettes
+// (stepped crowns like Chifley Tower, open frames like Deutsche Bank Place, Crown Sydney's curved top...)
+const TOWERS = [[426, 22, 168, 'flat'], [448, 24, 150, 'slant'], [474, 30, 112, 'step'], [508, 22, 138, 'flat'], [532, 34, 86, 'crown'],
+  [570, 24, 120, 'frame'], [656, 26, 110, 'spire'], [684, 22, 136, 'flat'], [708, 32, 94, 'step'], [742, 22, 126, 'slant'],
+  [766, 26, 144, 'flat'], [794, 34, 150, 'frame'], [832, 22, 168, 'flat'], [856, 30, 156, 'spire'], [890, 24, 176, 'flat'], [916, 20, 190, 'slant']];
 function cbd() {
   const d = [];
-  for (const [x, w, top] of TOWERS) {
-    d.push(R(x, top, w, WY - top));
-    if (rnd() < .4) d.push(R(x + 3, top - 6, w - 6, 6));
-    if (rnd() < .3) d.push(R(x + w / 2 - .6, top - 18, 1.2, 14));
-    for (let y = top + 6; y < WY - 6; y += 7) for (let wx = x + 3; wx < x + w - 3; wx += 5) win(wx, y, 2.4, 3, .12);
+  let lines = '';
+  for (const [x, w, top, kind] of TOWERS) {
+    if (kind === 'crown') {
+      d.push(`M${x} ${WY}V${top + 26}C${x} ${top + 8} ${f(x + w * .3)} ${top - 8} ${f(x + w * .5)} ${top - 12}C${f(x + w * .7)} ${top - 8} ${x + w} ${top + 8} ${x + w} ${top + 26}V${WY}Z`);
+    } else if (kind === 'slant') {
+      d.push(`M${x} ${WY}V${top + 12}L${x + w} ${top}V${WY}Z`);
+    } else {
+      d.push(R(x, top, w, WY - top));
+      if (kind === 'flat') d.push(R(x + w * .2, top - 4, w * .6, 4));
+      if (kind === 'step') d.push(R(x + 3, top - 8, w - 6, 8), R(x + 7, top - 15, w - 14, 7), R(x + w / 2 - .6, top - 32, 1.2, 17));
+      if (kind === 'spire') d.push(`M${x + 2} ${top}L${x + w / 2} ${top - 20}L${x + w - 2} ${top}Z`, R(x + w / 2 - .5, top - 34, 1, 14));
+      if (kind === 'frame') d.push(R(x, top - 16, 2, 16), R(x + w - 2, top - 16, 2, 16), R(x, top - 16, w, 2), R(x + w / 2 - 1, top - 16, 2, 16));
+    }
+    // facade mullions
+    for (let k = 1; k < 3; k++) lines += `M${f(x + w * k / 3)} ${top + 6}V${WY}`;
+    // office floors: some floors are lit end to end, most are dark with a few lights on
+    const t0 = kind === 'slant' ? top + 14 : kind === 'crown' ? top + 18 : top + 5;
+    for (let y = t0; y < WY - 6; y += 6) {
+      const litFloor = rnd() < .22;
+      for (let wx = x + 2.5; wx < x + w - 3; wx += 4.2) win(wx, y, 2.6, 2.6, litFloor ? .75 : .07);
+    }
   }
-  return d;
+  return { d, lines };
 }
 function sydneyTower(cx) {
   return {
@@ -56,7 +75,14 @@ export const DECK = { x0: 642, x1: 956, y: 218 };
 export const topChord = (t) => quad(...TOP, t);
 function bridge() {
   const solid = [];
-  for (const x of [598, 966]) solid.push(R(x, 180, 34, WY - 180), R(x + 3, 172, 28, 8), R(x + 8, 165, 18, 7));
+  let pylonDetail = '', pylonDark = '';
+  for (const x of [598, 966]) {
+    solid.push(R(x, 180, 34, WY - 180), R(x + 3, 172, 28, 8), R(x + 8, 165, 18, 7), R(x + 12, 160, 10, 5));
+    // granite courses and the arched openings at deck level
+    for (let y = 188; y < WY; y += 9) pylonDetail += `M${x + 1} ${y}h32`;
+    pylonDetail += `M${x + 17} 172V${WY}`;
+    pylonDark += `M${x + 7} ${WY}V242Q${x + 17} 230 ${x + 27} 242V${WY}Z`;
+  }
   solid.push(R(560, 216, 476, 6));
   for (const x of [574, 1012]) solid.push(R(x, 222, 4, WY - 222));
   let truss = `M${TOP[0]}Q${TOP[1]} ${TOP[2]}M${BOT[0]}Q${BOT[1]} ${BOT[2]}`;
@@ -71,7 +97,9 @@ function bridge() {
   for (let i = 1; i < 44; i++) lights.push(topChord(i / 44));
   const deckLights = [];
   for (let x = 566; x < 1032; x += 7) deckLights.push([x, 214.5]);
-  return { solid, truss, lights, deckLights };
+  for (let x = 562; x < 1034; x += 5) truss += `M${x} 216V212`; // deck railing
+  truss += 'M560 212H1036';
+  return { solid, truss, lights, deckLights, pylonDetail, pylonDark };
 }
 
 /* ---------- Opera House ---------- */
@@ -92,14 +120,36 @@ function ribs(x0, w, h, dir) {
   return [.38, .62, .84].map((k) => `M${f(tip[0])} ${f(tip[1])}Q${f(fx(k * .55 + .12))} ${f(B - h * .5)} ${f(fx(k))} ${B}`).join('');
 }
 export const OPERA_TIP = [372 + 78 * .26, B - 92];
+// warm glass walls that fill the mouths of the front shells
+function glass(x0, w, h, dir) {
+  if (dir > 0) return '';
+  return `M${f(x0 + w * .02)} ${B}L${f(x0 + w * .2)} ${f(B - h * .5)}L${f(x0 + w * .36)} ${B}Z`;
+}
+
+/* ---------- a Sydney ferry crossing the harbour (its own layer, slides on the GPU) ---------- */
+function ferry(cx, y) {
+  let lit = '';
+  for (let x = -19; x < 19; x += 4.2) lit += `<rect x="${f(cx + x)}" y="${y - 6}" width="2.4" height="2.6"/>`;
+  for (let x = -11; x < 11; x += 4.4) lit += `<rect x="${f(cx + x)}" y="${y - 11}" width="2.4" height="2.4"/>`;
+  return `
+    <path d="M${cx - 30} ${y}L${cx + 30} ${y}L${cx + 25} ${y + 6}H${cx - 25}Z" fill="#123d2d"/>
+    <path d="M${cx - 23} ${y - 8}H${cx + 23}V${y}H${cx - 23}Z" fill="#3a3a2a"/>
+    <path d="M${cx - 15} ${y - 13}H${cx + 15}V${y - 8}H${cx - 15}Z" fill="#2c2c22"/>
+    <rect x="${cx - 1}" y="${y - 19}" width="2" height="6" fill="#2c2c22"/>
+    <g fill="#ffd27a">${lit}</g>
+    <g transform="translate(0 ${2 * y + 12}) scale(1 -1)" opacity=".22"><g fill="#ffd27a">${lit}</g></g>`;
+}
 
 export function buildHarbour(el) {
   windows.length = 0; seed = 11;
   const back = shores();
-  const city = cbd();
+  const { d: city, lines: mullions } = cbd();
   const tower = sydneyTower(640);
   const br = bridge();
   const podium = [R(356, B, 222, 14), R(350, B + 10, 234, 4)];
+  let steps = '';
+  for (let y = B + 3; y < B + 10; y += 2) steps += `M362 ${y}H${572}`;
+  const glassD = SAILS.map((s) => glass(...s)).join('');
   const sailsD = SAILS.map((s) => sail(...s)).join('');
   const ribsD = SAILS.map((s) => ribs(...s)).join('');
   const front = [...city, ...tower.d, ...br.solid, ...podium];
@@ -167,11 +217,15 @@ export function buildHarbour(el) {
   </defs>
   <path d="${back.join('')}" fill="#0d1436" opacity=".9"/>
   <use href="#hFront" fill="url(#hFill)" stroke="url(#hRim)" stroke-width="1"/>
+  <path d="${mullions}" stroke="#2a3a7a" stroke-width=".5" opacity=".6"/>
+  <path d="${br.pylonDetail}" stroke="#2c3a78" stroke-width=".6"/>
+  <path d="${br.pylonDark}" fill="#050817"/>
   <path d="${br.truss}" fill="none" stroke="#2a3a80" stroke-width="2.2" stroke-linecap="round"/>
   <path d="M${TOP[0]}Q${TOP[1]} ${TOP[2]}" fill="none" stroke="#9fd3ff" stroke-opacity=".35" stroke-width="1"/>
   <g fill="#ffcf6b">${steadyWin}</g>
   <path d="${tower.turret}" fill="#ffc55a" filter="url(#hGlow)"/>
   <path d="${sailsD}" fill="url(#sailWhite)" stroke="#5b5a86" stroke-width=".6"/>
+  <path d="${steps}" stroke="#3b4a8a" stroke-width=".6"/>
   <path d="${ribsD}" fill="none" stroke="#7d7aa6" stroke-width=".6" opacity=".7"/>
   <g filter="url(#hGlow)">${deck}</g>
   <rect x="0" y="${WY}" width="${VW}" height="${VH - WY}" fill="url(#hWater)"/>
@@ -188,6 +242,8 @@ export function buildHarbour(el) {
     + vivid('v1', 'vPink')
     + vivid('v2', 'vBlue', `<path d="${sailsD}" fill="url(#vStripes)"/><path d="${ribsD}" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width=".7"/>`)
     + vivid('v3', 'vGold')
+    + layer('glass', `<path d="${glassD}" fill="#ffc06a" opacity=".8" filter="url(#hGlow)"/>`)
+    + layer('ferry', ferry(560, WY + 18))
     + layer('city-lights a', `<g fill="#ffcf6b">${twA}</g><g fill="#fff1c2" filter="url(#hGlow)">${lightsA}</g>`)
     + layer('city-lights b', `<g fill="#ffcf6b">${twB}</g><g fill="#fff1c2" filter="url(#hGlow)">${lightsB}</g>`);
 

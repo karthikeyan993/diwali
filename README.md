@@ -5,7 +5,7 @@ Mobile-first Diwali greetings, one repo, two sites:
 | Site | Page | For | Theme |
 |---|---|---|---|
 | `SITE=chennai` (default) | `index.html` | Dishanth & Pravya | Chennai: gopuram, mango-leaf toran, diya game, crackers to burst |
-| `SITE=sydney` | `sydney.html` | Yashik | Sydney Nights: Opera House (Vivid colours), Harbour Bridge waterfall, fireworks reflected in the harbour |
+| `SITE=sydney` | `sydney.html` | Yashik | Sydney Nights: Opera House (Vivid colours), Harbour Bridge waterfall, ferry, promenade crackers, fireworks reflected in the harbour |
 
 Built with [Vite](https://vite.dev), [PixiJS](https://pixijs.com) (WebGL fireworks) and [GSAP](https://gsap.com). Sounds are synthesised with Web Audio.
 

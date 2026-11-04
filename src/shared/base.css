@@ -7,6 +7,11 @@
   --text: #fff7e6;
   --muted: rgba(255, 247, 230, .78);
   --faint: rgba(255, 247, 230, .55);
+  /* name finish: gold foil by default */
+  --name-fill: linear-gradient(180deg, #fff9df 0%, #ffe39a 28%, #fbbf45 52%, #ee9a22 72%, #d27d12 100%);
+  --name-stroke: rgba(255, 244, 210, .55);
+  --name-edge: rgba(110, 45, 0, .85);
+  --name-glow: rgba(255, 150, 30, .7);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
@@ -102,14 +107,19 @@ button { font-family: inherit; }
 }
 .g-name {
   font-size: clamp(3.3rem, 17vw, 7rem); font-weight: 800; line-height: 1.05; margin-top: .05em;
-  white-space: nowrap;
+  white-space: nowrap; padding: 0 .1em;
+  /* one glow for the whole word (cheaper and calmer than a glow per letter) */
+  filter: drop-shadow(0 2px 0 var(--name-edge)) drop-shadow(0 0 16px var(--name-glow));
 }
 .ch { display: inline-block; }
 /* the wave plays a few times after the reveal, then the letters rest (no permanent GPU layers) */
 .g-top .ch { animation: wave 3.4s ease-in-out 3; animation-delay: calc(var(--i) * -.2s); }
 .g-name .ch {
-  color: var(--c);
-  text-shadow: 0 0 2px #fff, 0 0 16px var(--c), 0 0 34px var(--c);
+  /* metallic lettering: a light-to-deep gradient clipped to each glyph */
+  color: transparent;
+  background: var(--name-fill);
+  -webkit-background-clip: text; background-clip: text;
+  padding: 0 .02em;
   animation: wave 3s ease-in-out 3;
   animation-delay: calc(var(--i) * -.22s);
 }

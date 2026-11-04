@@ -4,6 +4,11 @@
   --sky-2: #071232;
   --sky-3: #02050f;
   --gold: #ffd166;
+  /* name finish: neon chrome in harbour colours */
+  --name-fill: linear-gradient(180deg, #f4feff 0%, #b8f5ff 26%, #62d8ff 50%, #8a8bff 74%, #d985ff 100%);
+  --name-stroke: rgba(230, 250, 255, .6);
+  --name-edge: rgba(10, 20, 80, .9);
+  --name-glow: rgba(80, 200, 255, .75);
 }
 
 /* content sits above the harbour */
@@ -73,6 +78,8 @@
 }
 #harbour svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 #harbour .city-lit { opacity: 0; will-change: opacity; }
+#harbour .ferry { will-change: transform; animation: ferry 80s linear infinite; }
+@keyframes ferry { from { transform: translateX(-75%); } to { transform: translateX(75%); } }
 #harbour .city-lights { will-change: opacity; animation: serial 1.6s steps(1, end) infinite; }
 #harbour .city-lights.b { animation-delay: -.8s; }
 @keyframes serial { 0% { opacity: 1; } 50% { opacity: .3; } }
@@ -82,6 +89,10 @@
 #harbour .v3 { animation-delay: -5s; }
 @keyframes vivid { 0% { opacity: 0; } 6%, 30% { opacity: .72; } 36%, 100% { opacity: 0; } }
 
+/* harbour-side promenade in the foreground, where the ground crackers are lit */
+#shore { position: absolute; left: 0; right: 0; bottom: 0; height: 52px; }
+#shore svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
 #greet { touch-action: none; }
 .g-top { margin-top: 0; color: #e6f6ff; text-shadow: 0 0 2px #fff, 0 0 18px rgba(80, 200, 255, .9), 0 0 40px rgba(120, 80, 255, .5); }
 .g-hint { color: #9fe6ff; }
@@ -89,6 +100,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .launch::before, .l-spark, #harbour .city-lights { animation: none; }
-  #harbour .vivid { animation: none; }
+  #harbour .vivid, #harbour .ferry { animation: none; }
   #harbour .v1 { opacity: .9; }
 }

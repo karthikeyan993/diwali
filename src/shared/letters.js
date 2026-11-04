@@ -1,13 +1,12 @@
 // "Happy Diwali, Name!" letter animation shared by every themed page.
 import { gsap } from 'gsap';
-import { MULTI } from './fireworks.js';
+import { GOLD } from './fireworks.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
-export const RAINBOW = ['#ffd166', '#ff9f1c', '#ff5f8f', '#e45bff', '#9b7bff', '#4fc3ff', '#2ee6c5', '#9dff6a'];
 
 export const center = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
 
-export function splitInto(el, text, colors = null) {
+export function splitInto(el, text) {
   el.innerHTML = '';
   el.setAttribute('aria-label', text);
   return [...text].map((ch, i) => {
@@ -15,18 +14,17 @@ export function splitInto(el, text, colors = null) {
     s.className = 'ch';
     s.setAttribute('aria-hidden', 'true');
     s.style.setProperty('--i', i);
-    if (colors) s.style.setProperty('--c', colors[i % colors.length]);
     s.textContent = ch === ' ' ? ' ' : ch;
     el.appendChild(s);
     return s;
   });
 }
 
-/** Animate the greeting in: top line pops, the name's letters fly in and each lands with a tiny burst. */
-export function revealLetters(fx, topEl, nameEl, topText, name, palette = RAINBOW) {
+/** Animate the greeting in: top line pops, the name's letters fly in and each lands with a tiny burst.
+ *  The name's finish (gold foil, neon chrome...) comes from the theme's --name-* CSS variables. */
+export function revealLetters(fx, topEl, nameEl, topText, name, sparkle = [...GOLD, 0xffffff]) {
   const top = splitInto(topEl, topText);
-  const shift = (Math.random() * palette.length) | 0;
-  const letters = splitInto(nameEl, name + '!', [...palette.slice(shift), ...palette.slice(0, shift)]);
+  const letters = splitInto(nameEl, name + '!');
 
   gsap.fromTo(top,
     { opacity: 0, scale: 2.6, y: -30, rotation: -12, filter: 'blur(10px)' },
@@ -40,7 +38,7 @@ export function revealLetters(fx, topEl, nameEl, topText, name, palette = RAINBO
         each: .09,
         onStart() {
           const c = center(this.targets()[0]);
-          fx.burst(c.x, c.y, { type: 'peony', n: 22, speed: 2.4, flash: 22, pal: MULTI, trail: 0 });
+          fx.burst(c.x, c.y, { type: 'peony', n: 22, speed: 2.4, flash: 22, pal: sparkle, trail: 0 });
         },
       },
     });

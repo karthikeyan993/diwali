@@ -16,8 +16,26 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (a) => a[(Math.random() * a.length) | 0];
 
 const startScreen = $('#start'), greet = $('#greet'), world = $('#world'), launchBtn = $('#launch');
-const HARBOUR_PAL = ['#4ff0ff', '#7b8cff', '#c56bff', '#ff5fb8', '#ff9f5a', '#ffd166', '#7dffb5'];
+const SPARKLE = [0x4ff0ff, 0xff6fc8, 0xffffff, 0xb9a6ff];
 const SYD_SHELLS = [[0x4ff0ff, 0xffffff, 0x3b6bff], [0xff5fb8, 0xffffff, 0xb44dff], [0xffd166, 0xffffff, 0xff9f1c], ...PALETTES];
+
+/** Foreground promenade: a stone edge, railing and glowing harbour lamps, drawn to the screen width */
+function buildShore(el, W) {
+  let posts = '', lamps = '';
+  for (let x = 6; x < W; x += 22) posts += `M${x} 22V30`;
+  for (let x = 40; x < W; x += 140) {
+    lamps += `<rect x="${x - 1}" y="6" width="2" height="24" fill="#0b1230"/><circle cx="${x}" cy="6" r="3.2" fill="#fff1c2"/><circle cx="${x}" cy="6" r="11" fill="url(#lampGlow)"/>`;
+  }
+  el.innerHTML = `<svg viewBox="0 0 ${W} 52" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs><radialGradient id="lampGlow"><stop offset="0" stop-color="#ffd27a" stop-opacity=".55"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a2150"/><stop offset="1" stop-color="#05081a"/></linearGradient></defs>
+    <rect x="0" y="30" width="${W}" height="22" fill="url(#stone)"/>
+    <rect x="0" y="30" width="${W}" height="1.2" fill="#6f86d6" opacity=".45"/>
+    <path d="M0 22H${W}" stroke="#263066" stroke-width="1.6"/>
+    <path d="${posts}" stroke="#263066" stroke-width="1.4"/>
+    ${lamps}
+  </svg>`;
+}
 
 function shake() {
   if (RM) return;
@@ -35,6 +53,9 @@ async function main() {
   });
 
   const city = buildHarbour($('#harbour'));
+  const drawShore = () => buildShore($('#shore'), innerWidth);
+  drawShore();
+  addEventListener('resize', drawShore);
   const waterY = () => city.toScreen(0, WY).y;
 
   // bursts wash the skyline in their colour (opacity-only, composited)
@@ -73,6 +94,7 @@ async function main() {
     const a = city.toScreen(DECK.x0, DECK.y), b = city.toScreen(DECK.x1, DECK.y);
     const x0 = Math.max(0, a.x), x1 = Math.min(fx.width, b.x);
     if (x1 - x0 > 40) fx.waterfall(x0, x1, a.y + 2, waterY(), 7);
+    slots().forEach((x, i) => later(i * 150, () => fx.flowerPot(x, 6))); // the promenade joins in
     for (let i = 0; i < 7; i++) {
       later(400 + i * 320, () => {
         const from = arch(.12 + .76 * (i / 6));
@@ -81,9 +103,34 @@ async function main() {
     }
   }
 
+  /* ---------------- ground crackers on the promenade: flower pots, chakras, pops, ladi ---------------- */
+  let groundTimer = null;
+  const slots = () => [.1, .3, .5, .7, .9].map((s) => s * fx.width);
+  function groundAct() {
+    const W = fx.width, r = Math.random();
+    if (r < .4) fx.flowerPot(pick(slots()));
+    else if (r < .68) fx.chakra(rand(W * .15, W * .85));
+    else if (r < .86) {
+      const n = 3 + ((Math.random() * 4) | 0);
+      for (let i = 0; i < n; i++) later(i * rand(120, 380), () => fx.pop(rand(W * .06, W * .94)));
+    } else {
+      const x = rand(W * .08, W * .4);
+      fx.ladi(x, x + rand(W * .3, W * .5), 18);
+    }
+  }
+  function startGround() {
+    const W = fx.width;
+    later(200, () => fx.flowerPot(W * .2));
+    later(500, () => fx.flowerPot(W * .8));
+    later(1100, () => fx.chakra(W * .5));
+    const loop = () => { if (!document.hidden && !idle()) groundAct(); groundTimer = setTimeout(loop, rand(1700, 3200)); };
+    groundTimer = setTimeout(loop, 3800);
+  }
+
   function stopShow() {
     clearTimeout(showTimer);
     clearTimeout(bridgeTimer);
+    clearTimeout(groundTimer);
     timers.splice(0).forEach(clearTimeout);
   }
   function startShow(mode) {
@@ -132,9 +179,10 @@ async function main() {
   function revealGreeting() {
     gsap.set('.reveal', { opacity: 0, y: 20 });
     greet.classList.remove('hidden');
-    revealLetters(fx, $('#g-top'), $('#g-name'), 'Happy Diwali', NAME, HARBOUR_PAL);
+    revealLetters(fx, $('#g-top'), $('#g-name'), 'Happy Diwali', NAME, SPARKLE);
     gsap.to('.reveal', { opacity: 1, y: 0, duration: .7, ease: 'power2.out', stagger: .2, delay: 1.7 });
     startShow('party');
+    later(900, startGround);
   }
 
   function reset() {
