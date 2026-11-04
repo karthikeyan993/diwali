@@ -78,7 +78,9 @@ async function main() {
   let showTimer = null, bridgeTimer = null;
   let lastInput = performance.now();
   const idle = () => performance.now() - lastInput > 45000;
-  for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { lastInput = performance.now(); }, { passive: true });
+  for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { lastInput = performance.now(); fx.setQuiet(false); }, { passive: true });
+  // after a while without a touch, the background show carries on silently; a tap brings the sound back
+  setInterval(() => fx.setQuiet(performance.now() - lastInput > 20000), 1000);
 
   /* ---------------- launch points: barges on the water and the bridge arch ---------------- */
   const barge = () => ({ x: rand(fx.width * .06, fx.width * .94), y: waterY() + rand(2, 8) });
@@ -182,8 +184,11 @@ async function main() {
   }
 
   function reset() {
+    audio.stopAll(); // cut every sound that is still playing or scheduled
     stopShow();
     fx.stopGround();
+    fx.clearPots();
+    fx.clearSky();
     greet.classList.add('hidden');
     document.body.classList.remove('lit');
     fuse.reset();
@@ -198,7 +203,7 @@ async function main() {
     if (e.target.closest('button')) return;
     audio.unlock();
     const ty = Math.min(e.clientY, waterY() - 60);
-    fx.launchShell(e.clientX, ty, { from: { x: e.clientX + rand(-30, 30), y: waterY() + 4 }, pal: pick(SYD_SHELLS), n: 120, flash: 60 });
+    fx.launchShell(e.clientX, ty, { from: { x: e.clientX + rand(-30, 30), y: waterY() + 4 }, pal: pick(SYD_SHELLS), n: 120, flash: 60, user: true });
   });
   $('#sound').addEventListener('click', (e) => {
     audio.unlock();

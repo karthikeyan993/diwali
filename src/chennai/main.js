@@ -101,7 +101,9 @@ async function main() {
   /* ---------------- Idle calm: ease off if nobody has touched the screen for a while ---------------- */
   let lastInput = performance.now();
   const idle = () => performance.now() - lastInput > 45000;
-  for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { lastInput = performance.now(); }, { passive: true });
+  for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { lastInput = performance.now(); fx.setQuiet(false); }, { passive: true });
+  // after a while without a touch, the background show carries on silently; a tap brings the sound back
+  setInterval(() => fx.setQuiet(performance.now() - lastInput > 20000), 1000);
 
   /* ---------------- Background shows ---------------- */
   let showTimer = null;
@@ -189,6 +191,21 @@ async function main() {
 
   /* ---------------- Mini-game: light the diyas ---------------- */
   let lit = 0, playing = false;
+  // if nobody taps a diya for a few seconds, a finger points at the next one to light
+  const diyaHint = document.createElement('span');
+  diyaHint.className = 'diya-hint';
+  diyaHint.setAttribute('aria-hidden', 'true');
+  diyaHint.textContent = '👆';
+  let hintTimer = null;
+  function scheduleDiyaHint(delay = 4000) {
+    clearTimeout(hintTimer);
+    diyaHint.remove();
+    if (!playing) return;
+    hintTimer = setTimeout(() => {
+      const next = diyaBtns.find((b) => b.classList.contains('out'));
+      if (playing && next) next.appendChild(diyaHint);
+    }, delay);
+  }
 
   function startGame() {
     lit = 0;
@@ -198,6 +215,7 @@ async function main() {
     gsap.to('.halo', { opacity: 0, duration: .5, stagger: .08 });
     document.body.classList.add('game');
     setHint(`🪔 0 / ${diyaBtns.length}`);
+    scheduleDiyaHint(3500);
   }
 
   function setHint(text) {
@@ -223,11 +241,12 @@ async function main() {
     }
 
     if (lit === diyaBtns.length) finale();
-    else setHint(`🪔 ${lit} / ${diyaBtns.length}`);
+    else { setHint(`🪔 ${lit} / ${diyaBtns.length}`); scheduleDiyaHint(); }
   }
 
   function finale() {
     playing = false;
+    scheduleDiyaHint();
     document.body.classList.remove('game');
     setHint('🎉');
     clearTimeout(showTimer);
@@ -251,12 +270,16 @@ async function main() {
 
   /* ---------------- Reset ---------------- */
   function reset() {
+    audio.stopAll(); // cut every sound that is still playing or scheduled
     stopShow();
     stopGroundShow();
     stopTargets();
     fx.clearTargets();
     fx.stopGround();
+    fx.clearPots();
+    fx.clearSky();
     playing = false;
+    scheduleDiyaHint();
     document.body.classList.remove('game');
     gsap.killTweensOf('.ch, .reveal, .flame-wrap, .halo, #g-hint');
     gsap.to('.flame-wrap', { scale: 1, duration: .5, ease: 'back.out(2)' });
@@ -304,7 +327,7 @@ async function main() {
     if (e.target.closest('button')) return;
     audio.unlock();
     pressing = true;
-    if (!fx.hit(e.clientX, e.clientY)) fx.launchShell(e.clientX, Math.min(e.clientY, fx.height * .7), { n: 120, flash: 60 });
+    if (!fx.hit(e.clientX, e.clientY)) fx.launchShell(e.clientX, Math.min(e.clientY, fx.height * .7), { n: 120, flash: 60, user: true });
   });
   greet.addEventListener('pointermove', (e) => { if (pressing || e.pointerType === 'mouse') fx.hit(e.clientX, e.clientY); });
   addEventListener('pointerup', () => { pressing = false; });

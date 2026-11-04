@@ -4,8 +4,8 @@
 const rand = (a, b) => a + Math.random() * (b - a);
 const CHIME = [523.25, 587.33, 659.25, 783.99, 880, 1046.5]; // C major pentatonic
 
-let ac = null, master = null, dry = null, verb = null, on = true;
-let noiseBuf, crackleBuf, sizzleBuf;
+let ac = null, master = null, bus = null, dry = null, verb = null, on = true;
+let noiseBuf, crackleBuf, sizzleBuf, impulseBuf;
 
 /* ---------- one-time buffers ---------- */
 function makeNoise(sec) {
@@ -61,13 +61,11 @@ function unlock() {
       const limiter = ac.createDynamicsCompressor();
       limiter.threshold.value = -4; limiter.knee.value = 0; limiter.ratio.value = 20;
       limiter.attack.value = .001; limiter.release.value = .12;
-      const level = ac.createGain(); level.gain.value = .82;
+      const level = ac.createGain(); level.gain.value = .72;
       master.connect(limiter); limiter.connect(level); level.connect(ac.destination);
-      dry = ac.createGain(); dry.connect(master);
-      const conv = ac.createConvolver(); conv.buffer = makeImpulse();
-      const wet = ac.createGain(); wet.gain.value = .32;
-      verb = ac.createGain(); verb.connect(conv); conv.connect(wet); wet.connect(master);
+      impulseBuf = makeImpulse();
       noiseBuf = makeNoise(2); crackleBuf = makeCrackle(); sizzleBuf = makeSizzle();
+      newBus();
     }
     if (ac.state === 'suspended') ac.resume();
   } catch {
@@ -76,6 +74,25 @@ function unlock() {
 }
 
 const ok = () => on && ac && ac.state === 'running';
+
+/** All sounds (and their echo) run through a bus. Cutting the sound drops the bus and starts a fresh one,
+ *  which silences everything already playing or scheduled, including echo tails. */
+function newBus() {
+  bus = ac.createGain(); bus.connect(master);
+  dry = ac.createGain(); dry.connect(bus);
+  const conv = ac.createConvolver(); conv.buffer = impulseBuf;
+  const wet = ac.createGain(); wet.gain.value = .32;
+  verb = ac.createGain(); verb.connect(conv); conv.connect(wet); wet.connect(bus);
+}
+function stopAll() {
+  if (!ac || !bus) return;
+  const old = bus, t = ac.currentTime;
+  old.gain.cancelScheduledValues(t);
+  old.gain.setValueAtTime(old.gain.value, t);
+  old.gain.linearRampToValueAtTime(0, t + .03); // a 30 ms fade avoids a click
+  setTimeout(() => { try { old.disconnect(); } catch { /* already gone */ } }, 120);
+  newBus();
+}
 
 /* ---------- small helpers ---------- */
 function src(buf, loop = false, rate = 1) {
@@ -115,82 +132,119 @@ function fuse(dur = 2) {
   const s = src(sizzleBuf, true, rand(.95, 1.1)), hp = filter('highpass', 1600), pk = filter('peaking', 4200, 1.2), g = ac.createGain();
   pk.gain.value = 6;
   g.gain.setValueAtTime(.0001, t);
-  g.gain.exponentialRampToValueAtTime(.55, t + .06);
-  g.gain.setValueAtTime(.55, t + dur - .12);
+  g.gain.exponentialRampToValueAtTime(.38, t + .06);
+  g.gain.setValueAtTime(.38, t + dur - .12);
   g.gain.exponentialRampToValueAtTime(.0001, t + dur);
   s.connect(hp); hp.connect(pk); pk.connect(g); send(g, -.1, .12);
   s.start(t, Math.random() * 1.5); s.stop(t + dur + .05);
   for (let i = 0; i < 5; i++) popAt(t + rand(.1, dur - .1), rand(.08, .18), rand(-.3, .2), 2600);
 }
 
-/** Rocket lift-off: an ignition "fwoomp", then a roar and a rising whistle that fade as it climbs */
-function launch(lift = .45, dur = 1.3) {
-  if (!ok()) return;
-  const t = ac.currentTime, t1 = t + lift, end = t1 + dur;
-  // ignition: a soft thud plus fierce sizzle while it shudders in the bottle
-  { const s = src(noiseBuf), lp = filter('lowpass', 700), g = ac.createGain();
-    env(g, t, .5, .02, t + .4); s.connect(lp); lp.connect(g); send(g, 0, .2); s.start(t, Math.random()); s.stop(t + .45); }
-  { const s = src(sizzleBuf, true, 1.25), hp = filter('highpass', 1200), g = ac.createGain();
-    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.5, t + .05);
-    g.gain.setValueAtTime(.5, t1); g.gain.exponentialRampToValueAtTime(.0001, t1 + .35);
-    s.connect(hp); hp.connect(g); send(g, 0, .1); s.start(t, Math.random()); s.stop(t1 + .4); }
-  // thrust roar: bright at lift-off, duller and quieter as it gets further away
-  { const s = src(noiseBuf, true), bp = filter('bandpass', 500, 1.1), lp = filter('lowpass', 7000), g = ac.createGain();
-    bp.frequency.setValueAtTime(450, t1); bp.frequency.exponentialRampToValueAtTime(1900, end);
-    lp.frequency.setValueAtTime(7000, t1); lp.frequency.exponentialRampToValueAtTime(1400, end);
-    g.gain.setValueAtTime(.0001, t1); g.gain.exponentialRampToValueAtTime(.75, t1 + .1); g.gain.exponentialRampToValueAtTime(.0001, end);
-    s.connect(bp); bp.connect(lp); lp.connect(g); send(g, 0, .25); s.start(t1, Math.random()); s.stop(end + .05); }
-  // the whistle, sliding up with a little wobble
-  { const o = ac.createOscillator(), o2 = ac.createOscillator(), vib = ac.createOscillator(), vg = ac.createGain(), g = ac.createGain(), g2 = ac.createGain();
-    o.type = 'sine'; o2.type = 'triangle';
-    o.frequency.setValueAtTime(760, t1); o.frequency.exponentialRampToValueAtTime(2600, end);
-    o2.frequency.setValueAtTime(1520, t1); o2.frequency.exponentialRampToValueAtTime(5200, end);
-    vib.frequency.value = 17; vg.gain.value = 28; vib.connect(vg); vg.connect(o.frequency);
-    env(g, t1, .14, .18, end); env(g2, t1, .03, .18, end);
-    o.connect(g); o2.connect(g2); send(g, 0, .35); send(g2, 0, .35);
-    for (const n of [o, o2, vib]) { n.start(t1); n.stop(end + .05); }
-  }
+/** A smooth airy swish that rises and thins out as something climbs away (shared by rockets and shells) */
+function swish(t, dur, vol, pan) {
+  const s = src(noiseBuf, true), lp = filter('lowpass', 2600), bp = filter('bandpass', 520, .7), g = ac.createGain();
+  bp.frequency.setValueAtTime(520, t); bp.frequency.exponentialRampToValueAtTime(1900, t + dur);
+  lp.frequency.setValueAtTime(3200, t); lp.frequency.exponentialRampToValueAtTime(1500, t + dur);
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + Math.min(.35, dur * .3));
+  g.gain.setValueAtTime(vol, t + dur * .55);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  s.connect(bp); bp.connect(lp); lp.connect(g); send(g, pan, .3);
+  s.start(t, Math.random()); s.stop(t + dur + .05);
+}
+/** A soft whistle gliding upward with a gentle wobble */
+function whistle(t, dur, vol, pan, f0 = 820, f1 = 1900) {
+  const o = ac.createOscillator(), vib = ac.createOscillator(), vg = ac.createGain(), g = ac.createGain(), lp = filter('lowpass', 3000);
+  o.type = 'sine';
+  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  vib.frequency.value = 9; vg.gain.value = 14; vib.connect(vg); vg.connect(o.frequency);
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + dur * .25);
+  g.gain.setValueAtTime(vol, t + dur * .6);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(lp); lp.connect(g); send(g, pan, .4);
+  o.start(t); vib.start(t); o.stop(t + dur + .05); vib.stop(t + dur + .05);
 }
 
-/** Shell launch from the ground: a short swish, sometimes with a little whistle */
+/** Rocket lift-off: a soft ignition, then a long smooth swish with a gentle whistle as it climbs */
+function launch(lift = .45, dur = 1.8) {
+  if (!ok()) return;
+  const t = ac.currentTime, t1 = t + lift;
+  // ignition: a muffled puff and a short fizz while it shudders in the bottle
+  { const s = src(noiseBuf), lp = filter('lowpass', 500), g = ac.createGain();
+    env(g, t, .28, .03, t + .35); s.connect(lp); lp.connect(g); send(g, 0, .25); s.start(t, Math.random()); s.stop(t + .4); }
+  { const s = src(sizzleBuf, true, 1.15), hp = filter('highpass', 1800), g = ac.createGain();
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.3, t + .06);
+    g.gain.setValueAtTime(.3, t1); g.gain.exponentialRampToValueAtTime(.0001, t1 + .4);
+    s.connect(hp); hp.connect(g); send(g, 0, .1); s.start(t, Math.random()); s.stop(t1 + .45); }
+  swish(t1, dur + .25, .42, 0);
+  whistle(t1 + .08, dur, .07, 0, 760, 1700);
+  // a faint sparkle trail
+  { const s = src(sizzleBuf, true, 1.4), hp = filter('highpass', 4000), g = ac.createGain();
+    env(g, t1, .07, .2, t1 + dur); s.connect(hp); hp.connect(g); send(g, 0, .2); s.start(t1, Math.random()); s.stop(t1 + dur + .05); }
+}
+
+/** Shell rising from the ground: the same swish, lighter, sometimes with a little whistle */
 function whoosh(dur = 1.1, vol = .16, pan = 0) {
   if (!ok()) return;
-  const t = ac.currentTime, s = src(noiseBuf, true), f = filter('bandpass', 350, 4), g = ac.createGain();
-  f.frequency.setValueAtTime(350, t); f.frequency.exponentialRampToValueAtTime(3000, t + dur);
-  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + dur * .6); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
-  s.connect(f); f.connect(g); send(g, pan, .15);
-  s.start(t, Math.random()); s.stop(t + dur + .05);
-  if (Math.random() < .35) {
-    const o = ac.createOscillator(), og = ac.createGain();
-    o.frequency.setValueAtTime(rand(900, 1300), t); o.frequency.exponentialRampToValueAtTime(rand(2200, 3200), t + dur);
-    env(og, t, vol * .35, .2, t + dur);
-    o.connect(og); send(og, pan, .3); o.start(t); o.stop(t + dur + .05);
-  }
+  const t = ac.currentTime;
+  swish(t, dur, vol, pan);
+  if (Math.random() < .35) whistle(t, dur * .9, vol * .3, pan, rand(850, 1150), rand(1700, 2300));
 }
 
-/** A firework bursting: crack + chest thump + rumbling body, an echo, and a glittering crackle after */
+/** A firework bursting, tuned for phone speakers: a soft crack, a warm "whump", a long echo, then glitter */
 function boom(big = false, pan = 0) {
   if (!ok()) return;
-  const t = ac.currentTime, vol = big ? 1 : rand(.35, .6), len = big ? 2.3 : rand(1.1, 1.5);
-  // crack
-  { const s = src(noiseBuf), hp = filter('highpass', 1400), g = ac.createGain();
-    env(g, t, vol * .9, .003, t + .06); s.connect(hp); hp.connect(g); send(g, pan, .5); s.start(t, Math.random()); s.stop(t + .08); }
-  // thump: a falling low tone you feel more than hear
+  const t = ac.currentTime, vol = big ? .72 : rand(.22, .36), len = big ? 2.4 : rand(1.2, 1.6);
+  // soft crack (band-limited, so it's a "pop" rather than a harsh click)
+  { const s = src(noiseBuf), bp = filter('bandpass', 1700, .6), lp = filter('lowpass', 4200), g = ac.createGain();
+    env(g, t, vol * .5, .004, t + .07); s.connect(bp); bp.connect(lp); lp.connect(g); send(g, pan, .6); s.start(t, Math.random()); s.stop(t + .09); }
+  // warm whump in the range phone speakers can actually play
   { const o = ac.createOscillator(), g = ac.createGain();
-    o.frequency.setValueAtTime(big ? 78 : rand(80, 120), t); o.frequency.exponentialRampToValueAtTime(36, t + .55);
-    env(g, t, vol * (big ? .95 : .5), .005, t + .65); o.connect(g); send(g, pan * .5, .2); o.start(t); o.stop(t + .7); }
-  // body: the rolling boom
-  { const s = src(noiseBuf, true), lp = filter('lowpass', big ? 1800 : rand(1100, 1500)), g = ac.createGain();
-    lp.frequency.setValueAtTime(lp.frequency.value, t); lp.frequency.exponentialRampToValueAtTime(80, t + len);
-    env(g, t, vol * .7, .01, t + len); s.connect(lp); lp.connect(g); send(g, pan, big ? .7 : .45);
+    o.frequency.setValueAtTime(big ? 140 : rand(150, 190), t); o.frequency.exponentialRampToValueAtTime(62, t + .45);
+    env(g, t, vol * .45, .008, t + .55); o.connect(g); send(g, pan * .5, .3); o.start(t); o.stop(t + .6); }
+  // body: a rolling boom that mostly lives in the echo
+  { const s = src(noiseBuf, true), lp = filter('lowpass', big ? 1200 : rand(900, 1200)), g = ac.createGain();
+    lp.frequency.setValueAtTime(lp.frequency.value, t); lp.frequency.exponentialRampToValueAtTime(90, t + len);
+    env(g, t, vol * .5, .015, t + len); s.connect(lp); lp.connect(g); send(g, pan, .9);
     s.start(t, Math.random()); s.stop(t + len + .05); }
   // glitter crackle afterwards
   if (big || Math.random() < .6) {
-    const ct = t + rand(.18, .35), rate = rand(.85, 1.25);
-    const s = src(crackleBuf, false, rate), hp = filter('highpass', 1700), g = ac.createGain();
-    g.gain.value = vol * (big ? .6 : .32);
-    s.connect(hp); hp.connect(g); send(g, pan * .6, .3);
+    const ct = t + rand(.2, .38), rate = rand(.85, 1.2);
+    const s = src(crackleBuf, false, rate), hp = filter('highpass', 2000), g = ac.createGain();
+    g.gain.value = vol * (big ? .55 : .35);
+    s.connect(hp); hp.connect(g); send(g, pan * .6, .35);
     s.start(ct); s.stop(ct + crackleBuf.duration / rate);
+  }
+}
+
+/** Each floating cracker in the Chennai game has its own voice */
+function cracker(kind, pan = 0) {
+  if (!ok()) return;
+  const t = ac.currentTime;
+  if (kind === 'bomb') {
+    // atom bomb: a deep round BOOM with a long echo
+    { const o = ac.createOscillator(), g = ac.createGain();
+      o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(50, t + .6);
+      env(g, t, .32, .01, t + .7); o.connect(g); send(g, pan * .5, .4); o.start(t); o.stop(t + .75); }
+    { const s = src(noiseBuf, true), lp = filter('lowpass', 900), g = ac.createGain();
+      lp.frequency.setValueAtTime(900, t); lp.frequency.exponentialRampToValueAtTime(70, t + 1.6);
+      env(g, t, .32, .01, t + 1.6); s.connect(lp); lp.connect(g); send(g, pan, .9); s.start(t, Math.random()); s.stop(t + 1.65); }
+  } else if (kind === 'lakshmi') {
+    // Lakshmi cracker: a sharp DHAAM, then a short rattle of crackle
+    { const s = src(noiseBuf), bp = filter('bandpass', 2300, .8), g = ac.createGain();
+      env(g, t, .55, .002, t + .12); s.connect(bp); bp.connect(g); send(g, pan, .6); s.start(t, Math.random()); s.stop(t + .14); }
+    { const s = src(noiseBuf, true), lp = filter('lowpass', 1800), g = ac.createGain();
+      env(g, t, .3, .005, t + .5); s.connect(lp); lp.connect(g); send(g, pan, .6); s.start(t, Math.random()); s.stop(t + .55); }
+    { const s = src(crackleBuf, false, 1.5), hp = filter('highpass', 1800), g = ac.createGain();
+      g.gain.value = .35; s.connect(hp); hp.connect(g); send(g, pan, .3); s.start(t + .12); s.stop(t + .12 + crackleBuf.duration / 1.5); }
+  } else {
+    // rocket: a quick rising zip, then a bright pop
+    whistle(t, .32, .12, pan, 1100, 3000);
+    swish(t, .32, .18, pan);
+    popAt(t + .3, .5, pan, 2000);
+    { const s = src(crackleBuf, false, 1.3), hp = filter('highpass', 2400), g = ac.createGain();
+      g.gain.value = .25; s.connect(hp); hp.connect(g); send(g, pan, .35); s.start(t + .34); s.stop(t + .34 + crackleBuf.duration / 1.3); }
   }
 }
 
@@ -238,6 +292,7 @@ function chime(step = 0) {
 }
 
 export const audio = {
-  unlock, fuse, launch, whoosh, boom, pop, hiss, chime,
-  toggle() { on = !on; return on; },
+  unlock, fuse, launch, whoosh, boom, cracker, pop, hiss, chime,
+  stopAll,
+  toggle() { on = !on; if (!on) stopAll(); return on; },
 };

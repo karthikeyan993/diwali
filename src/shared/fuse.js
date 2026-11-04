@@ -158,7 +158,8 @@ export function createFuse(host) {
 
     fly.classList.add('lit');
     const rumble = reducedMotion ? .2 : .45;
-    audio.launch(rumble, 1.3);
+    const climb = reducedMotion ? 1.2 : 1.8; // a longer, more graceful climb
+    audio.launch(rumble, climb);
     const tl = gsap.timeline();
     // ignition: the rocket shudders in the bottle, spitting sparks
     tl.to(fly, {
@@ -167,7 +168,7 @@ export function createFuse(host) {
     })
       // lift-off: it accelerates away, leaning slightly as it drifts towards the middle
       .to(fly, {
-        duration: 1.25, ease: 'power2.in',
+        duration: climb, ease: 'power1.in',
         x: dx, y: dy, rotation: gsap.utils.clamp(-12, 12, dx / 18), scale: .8,
         onUpdate: () => emit(4, 1),
       });

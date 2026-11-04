@@ -38,7 +38,7 @@ function glowTexture(size = 64) {
 /** A stand-in with the same API, used if WebGL can't start, so the greeting still works. */
 function noopEngine() {
   const noop = () => {};
-  return { spark: noop, burst: noop, launchShell: noop, setEmbers: noop, flowerPot: noop, chakra: noop, pop: noop, ladi: noop, stopGround: noop, waterfall: noop, spawnTarget: noop, hit: () => false, clearTargets: noop, targetCount: 0, width: innerWidth, height: innerHeight, scale: 1 };
+  return { spark: noop, burst: noop, launchShell: noop, setEmbers: noop, flowerPot: noop, chakra: noop, pop: noop, ladi: noop, stopGround: noop, clearPots: noop, clearSky: noop, setQuiet: noop, waterfall: noop, spawnTarget: noop, hit: () => false, clearTargets: noop, targetCount: 0, width: innerWidth, height: innerHeight, scale: 1 };
 }
 
 export async function createFireworks(host, { quality: baseQuality = 1, onLight = null, onTargetBurst = null, reflection = null } = {}) {
@@ -76,6 +76,11 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
   const pool = [], parts = [], shells = [], flashes = [], emitters = [];
   const maxParts = () => 2600 * quality + 300;
   let embers = true;
+  // quiet: background (automatic) sounds are muted; anything the user triggers still sounds
+  let quiet = false;
+  const auto = (opts = {}) => !opts.silent && (!quiet || opts.user);
+  const groundTimers = [];
+  let drewLast = false;
 
   const W = () => app.screen.width;
   const H = () => app.screen.height;
@@ -181,7 +186,8 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
     const vy = -Math.sqrt(2 * g * Math.max(60, sy - ty));
     const frames = -vy / g;
     shells.push({ x: sx, y: sy, vx: (tx - sx) / frames, vy, g, opts, sp: sprite() });
-    if (!opts.silent) audio.whoosh(rand(.7, 1), .08, panOf(sx));
+    // the swish lasts as long as the climb
+    if (auto(opts)) audio.whoosh(Math.min(2.2, Math.max(.8, frames / 60 + .15)), .085, panOf(sx));
   }
 
   /* ---------- Ground crackers ---------- */
@@ -194,24 +200,46 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
     return g;
   }
 
-  /** Flower pot (anar): a cone on the ground spraying a fountain of sparks */
-  function flowerPot(x, dur = rand(4.5, 6.5)) {
-    const body = new Graphics()
-      .poly([-11, 0, 11, 0, 4, -24, -4, -24]).fill(0x9e1f1a)
-      .poly([-9.5, -6, 9.5, -6, 8.4, -9.5, -8.4, -9.5]).fill(0xffc53d)
-      .poly([-6.6, -15, 6.6, -15, 5.6, -18, -5.6, -18]).fill(0xffc53d)
-      .rect(-4, -26, 8, 3).fill(0x3a0d0a);
-    body.position.set(x, groundY());
-    body.alpha = 0;
-    groundLayer.addChild(body);
-    emitters.push({ type: 'pot', x, t: 0, dur: dur * 60, body, pal: pick(POT_COLORS), g: glow(0xffe39a) });
-    audio.hiss(dur, .05, false, panOf(x));
+  /** Flower pot (anar): a cone on the ground spraying a fountain of sparks.
+   *  Pots stay standing where they were placed and simply fire again, rather than vanishing. */
+  const pots = [];
+  function potAt(x) {
+    let p = pots.find((q) => Math.abs(q.x - x) < 16);
+    if (!p) {
+      const body = new Graphics()
+        .poly([-11, 0, 11, 0, 4, -24, -4, -24]).fill(0x9e1f1a)
+        .poly([-9.5, -6, 9.5, -6, 8.4, -9.5, -8.4, -9.5]).fill(0xffc53d)
+        .poly([-6.6, -15, 6.6, -15, 5.6, -18, -5.6, -18]).fill(0xffc53d)
+        .rect(-4, -26, 8, 3).fill(0x3a0d0a);
+      body.position.set(x, groundY());
+      body.alpha = 0;
+      groundLayer.addChild(body);
+      p = { x, body };
+      pots.push(p);
+    }
+    return p;
+  }
+  function flowerPot(x, dur = rand(4.5, 6.5), opts = {}) {
+    const p = potAt(x);
+    if (emitters.some((e) => e.type === 'pot' && e.pot === p)) return; // already firing
+    emitters.push({ type: 'pot', x: p.x, pot: p, t: 0, dur: dur * 60, pal: pick(POT_COLORS), g: glow(0xffe39a) });
+    if (auto(opts)) audio.hiss(dur, .05, false, panOf(x));
+  }
+  /** Drop shells still climbing and fade every spark quickly (used when starting over) */
+  function clearSky() {
+    shells.splice(0).forEach((s) => release(s.sp));
+    for (const p of parts) p.decay = Math.max(p.decay, .08);
+    drewLast = true;
+  }
+  function clearPots() {
+    pots.splice(0).forEach((p) => p.body.destroy());
+    drewLast = true; // draw one more frame so they disappear
   }
 
   /** Chakra: a ground spinner that whirls sparks and wanders a little */
   function chakra(x, dur = rand(4, 5.5)) {
     emitters.push({ type: 'chakra', x, vx: rand(-.5, .5), t: 0, dur: dur * 60, a: 0, g: glow(0xfff2c0) });
-    audio.hiss(dur, .06, true, panOf(x));
+    if (auto()) audio.hiss(dur, .06, true, panOf(x));
   }
 
   /** A tiny cracker going pop */
@@ -222,13 +250,13 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
       spark(x, y, Math.cos(a) * s, Math.sin(a) * s, pick([0xffffff, 0xfff3b0, 0xffd166, 0xff8c1a]),
         { decay: rand(.04, .07), size: rand(1.1, 2), g: .09, f: .94 });
     }
-    audio.pop(loud, panOf(x));
+    if (auto() || loud) audio.pop(loud, panOf(x));
   }
 
   /** Ladi / saram: a string of crackers popping in quick succession across the ground */
   function ladi(x0, x1, count = 24) {
     for (let i = 0; i < count; i++) {
-      setTimeout(() => pop(lerpN(x0, x1, i / (count - 1)) + rand(-6, 6)), i * rand(55, 95));
+      groundTimers.push(setTimeout(() => pop(lerpN(x0, x1, i / (count - 1)) + rand(-6, 6)), i * rand(55, 95)));
     }
   }
   const lerpN = (a, b, t) => a + (b - a) * t;
@@ -236,10 +264,11 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
   /** Bridge waterfall: a curtain of golden sparks pouring from a deck down to the water */
   function waterfall(x0, x1, y, floor, dur = 7) {
     emitters.push({ type: 'falls', x0, x1, y, floor, t: 0, dur: dur * 60 });
-    audio.hiss(dur, .06, false, panOf((x0 + x1) / 2));
+    if (auto()) audio.hiss(dur, .06, false, panOf((x0 + x1) / 2));
   }
 
   function stopGround() {
+    groundTimers.splice(0).forEach(clearTimeout);
     emitters.forEach((e) => { e.t = Math.max(e.t, e.dur - 30); });
   }
 
@@ -294,8 +323,7 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
     targets.splice(i, 1);
     const pal = t.kind === 'bomb' ? [0x7dff6a, 0xffd166, 0xffffff] : t.kind === 'lakshmi' ? [0xff3b3b, 0xffd166, 0xfff3b0] : MULTI;
     burst(t.x, t.y, { type: pick(['peony', 'double', 'ring', 'crossette', 'peony']), pal, n: 130, speed: 6, flash: 90, glitter: true });
-    audio.pop(true, panOf(t.x));
-    audio.boom(false, panOf(t.x));
+    audio.cracker(t.kind, panOf(t.x));
     t.g.destroy();
     onTargetBurst?.(t.kind, t.x, t.y);
   }
@@ -341,7 +369,6 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
       const t = e.t / e.dur;
       if (t >= 1.15) {
         if (e.g) release(e.g);
-        if (e.body) e.body.destroy();
         emitters.splice(i, 1);
         continue;
       }
@@ -349,7 +376,7 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
       const env = t >= 1 ? 0 : Math.min(1, e.t / 25) * Math.min(1, (1 - t) * 6) * rand(.75, 1);
 
       if (e.type === 'pot') {
-        e.body.alpha = Math.min(1, e.t / 10) * (t > 1 ? Math.max(0, 1 - (t - 1) * 7) : 1);
+        e.pot.body.alpha = Math.min(1, e.pot.body.alpha + .1 * k);
         const mx = e.x, my = gy - 25;
         const n = Math.round(8 * env * k * quality);
         for (let j = 0; j < n; j++) {
@@ -410,7 +437,6 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
 
   const ticker = new Ticker();
   ticker.maxFPS = 60; // don't double the work on 120 Hz screens
-  let drewLast = false;
   let slowFrames = 0, fastFrames = 0;
   ticker.add(() => {
     const k = Math.min(ticker.deltaTime, 3);
@@ -429,6 +455,7 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
 
     updateEmitters(k);
     updateTargets(k);
+    if (pots.length) { const gy = groundY(); for (const p of pots) p.body.y = gy; }
 
     for (let i = flashes.length - 1; i >= 0; i--) {
       const f = flashes[i];
@@ -453,7 +480,7 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
         release(s.sp);
         shells.splice(i, 1);
         burst(s.x, s.y, s.opts);
-        if (!s.opts.silent) audio.boom(false, panOf(s.x));
+        if (auto(s.opts)) audio.boom(false, panOf(s.x));
       }
     }
 
@@ -502,7 +529,8 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
   ticker.start();
 
   return {
-    spark, burst, launchShell, flowerPot, chakra, pop, ladi, stopGround, waterfall, spawnTarget, hit, clearTargets,
+    spark, burst, launchShell, flowerPot, chakra, pop, ladi, stopGround, clearPots, clearSky, waterfall, spawnTarget, hit, clearTargets,
+    setQuiet(v) { quiet = v; },
     get targetCount() { return targets.length; },
     setEmbers(v) { embers = v; },
     get width() { return W(); },
