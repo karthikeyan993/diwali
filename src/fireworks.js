@@ -1,6 +1,6 @@
 // WebGL fireworks engine built on PixiJS.
 // Every particle is an additive-blended glow sprite, stretched along its velocity so it reads as a streak.
-import { Application, Container, Sprite, Texture } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { audio } from './audio.js';
 
 export const PALETTES = [
@@ -38,10 +38,10 @@ function glowTexture(size = 64) {
 /** A stand-in with the same API, used if WebGL can't start, so the greeting still works. */
 function noopEngine() {
   const noop = () => {};
-  return { spark: noop, burst: noop, launchShell: noop, setEmbers: noop, width: innerWidth, height: innerHeight, scale: 1 };
+  return { spark: noop, burst: noop, launchShell: noop, setEmbers: noop, flowerPot: noop, chakra: noop, pop: noop, ladi: noop, stopGround: noop, width: innerWidth, height: innerHeight, scale: 1 };
 }
 
-export async function createFireworks(host, { quality = 1 } = {}) {
+export async function createFireworks(host, { quality = 1, onLight = null } = {}) {
   const app = new Application();
   try {
     await app.init({
@@ -61,10 +61,11 @@ export async function createFireworks(host, { quality = 1 } = {}) {
   host.appendChild(app.canvas);
 
   const tex = glowTexture();
+  const groundLayer = new Container(); // flower-pot bodies (normal blending)
   const layer = new Container();
-  app.stage.addChild(layer);
+  app.stage.addChild(groundLayer, layer);
 
-  const pool = [], parts = [], shells = [], flashes = [];
+  const pool = [], parts = [], shells = [], flashes = [], emitters = [];
   const MAX = Math.round(3200 * quality) + 300;
   let embers = true;
 
@@ -157,7 +158,10 @@ export async function createFireworks(host, { quality = 1 } = {}) {
       }
     }
     const fl = opt.flash ?? 70;
-    if (fl > 0) flash(x, y, fl * S());
+    if (fl > 0) {
+      flash(x, y, fl * S());
+      onLight?.(pal[0], fl);
+    }
   }
 
   function launchShell(tx, ty, opts = {}) {
@@ -168,6 +172,107 @@ export async function createFireworks(host, { quality = 1 } = {}) {
     if (!opts.silent) audio.whoosh(rand(.7, 1), .05);
   }
 
+  /* ---------- Ground crackers ---------- */
+  const groundY = () => H() - 16;
+  const POT_COLORS = [GOLD, GOLD, [0xffd166, 0x7dff6a, 0xffffff], [0xffd166, 0xff6fb5, 0xffffff]];
+
+  function glow(color) {
+    const g = sprite();
+    g.tint = color; g.rotation = 0; g.alpha = 0;
+    return g;
+  }
+
+  /** Flower pot (anar): a cone on the ground spraying a fountain of sparks */
+  function flowerPot(x, dur = rand(4.5, 6.5)) {
+    const body = new Graphics()
+      .poly([-11, 0, 11, 0, 4, -24, -4, -24]).fill(0x9e1f1a)
+      .poly([-9.5, -6, 9.5, -6, 8.4, -9.5, -8.4, -9.5]).fill(0xffc53d)
+      .poly([-6.6, -15, 6.6, -15, 5.6, -18, -5.6, -18]).fill(0xffc53d)
+      .rect(-4, -26, 8, 3).fill(0x3a0d0a);
+    body.position.set(x, groundY());
+    body.alpha = 0;
+    groundLayer.addChild(body);
+    emitters.push({ type: 'pot', x, t: 0, dur: dur * 60, body, pal: pick(POT_COLORS), g: glow(0xffe39a) });
+    audio.hiss(dur, .05);
+  }
+
+  /** Chakra: a ground spinner that whirls sparks and wanders a little */
+  function chakra(x, dur = rand(4, 5.5)) {
+    emitters.push({ type: 'chakra', x, vx: rand(-.5, .5), t: 0, dur: dur * 60, a: 0, g: glow(0xfff2c0) });
+    audio.hiss(dur, .06, true);
+  }
+
+  /** A tiny cracker going pop */
+  function pop(x, y = groundY() - rand(0, 6), loud = false) {
+    flash(x, y, rand(14, 22) * S());
+    for (let i = 0; i < 16 * quality; i++) {
+      const a = rand(Math.PI, Math.PI * 2), s = rand(1, 3.4) * S();
+      spark(x, y, Math.cos(a) * s, Math.sin(a) * s, pick([0xffffff, 0xfff3b0, 0xffd166, 0xff8c1a]),
+        { decay: rand(.04, .07), size: rand(1.1, 2), g: .09, f: .94 });
+    }
+    audio.pop(loud);
+  }
+
+  /** Ladi / saram: a string of crackers popping in quick succession across the ground */
+  function ladi(x0, x1, count = 24) {
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => pop(lerpN(x0, x1, i / (count - 1)) + rand(-6, 6)), i * rand(55, 95));
+    }
+  }
+  const lerpN = (a, b, t) => a + (b - a) * t;
+
+  function stopGround() {
+    emitters.forEach((e) => { e.t = Math.max(e.t, e.dur - 30); });
+  }
+
+  function updateEmitters(k) {
+    const gy = groundY();
+    for (let i = emitters.length - 1; i >= 0; i--) {
+      const e = emitters[i];
+      e.t += k;
+      const t = e.t / e.dur;
+      if (t >= 1.15) {
+        release(e.g);
+        if (e.body) e.body.destroy();
+        emitters.splice(i, 1);
+        continue;
+      }
+      // ramp up, sustain with flicker, die out
+      const env = t >= 1 ? 0 : Math.min(1, e.t / 25) * Math.min(1, (1 - t) * 6) * rand(.75, 1);
+
+      if (e.type === 'pot') {
+        e.body.alpha = Math.min(1, e.t / 10) * (t > 1 ? Math.max(0, 1 - (t - 1) * 7) : 1);
+        const mx = e.x, my = gy - 25;
+        const n = Math.round(8 * env * k * quality);
+        for (let j = 0; j < n; j++) {
+          spark(mx + rand(-2, 2), my, rand(-1.5, 1.5) * S(), -rand(5.5, 9.2) * S() * (.65 + .35 * env), pick(e.pal),
+            { g: .2 * S(), f: .99, decay: rand(.016, .028), size: rand(1.3, 2.4), tw: Math.random() < .4 });
+        }
+        e.g.position.set(mx, my - 4);
+        e.g.scale.set(.9 + env * .5);
+        e.g.alpha = env * .8;
+      } else {
+        e.x += e.vx * k;
+        if (e.x < W() * .08 || e.x > W() * .92) e.vx *= -1;
+        e.a += .42 * k;
+        const cy = gy - 6, r = 5;
+        const colors = [0x7dff6a, 0xffd166, 0xff5a5a, 0xffffff];
+        const col = colors[Math.floor(e.t / 50) % colors.length];
+        const n = Math.max(1, Math.round(3 * k * quality * (env > .05 ? 1 : 0)));
+        for (let j = 0; j < n * 2 && env > .05; j++) {
+          const a = e.a + (j % 2) * Math.PI + rand(-.15, .15);
+          const px = e.x + Math.cos(a) * r, py = cy + Math.sin(a) * r * .45;
+          const sp = rand(3.5, 6) * S();
+          spark(px, py, -Math.sin(a) * sp, Math.cos(a) * sp * .45 - rand(0, 1.2), Math.random() < .3 ? 0xffffff : col,
+            { g: .05, f: .93, decay: rand(.04, .06), size: rand(1.2, 2.2) });
+        }
+        e.g.position.set(e.x, cy);
+        e.g.scale.set(.5 + env * .35);
+        e.g.alpha = env;
+      }
+    }
+  }
+
   app.ticker.add((ticker) => {
     const k = Math.min(ticker.deltaTime, 3);
     const w = W(), h = H();
@@ -176,6 +281,8 @@ export async function createFireworks(host, { quality = 1 } = {}) {
       spark(rand(0, w), h + 4, rand(-.3, .3), rand(-1.6, -.7), pick(FLAME),
         { g: -.004, f: .995, decay: rand(.004, .008), size: rand(1.1, 2.3), tw: true });
     }
+
+    updateEmitters(k);
 
     for (let i = flashes.length - 1; i >= 0; i--) {
       const f = flashes[i];
@@ -242,7 +349,7 @@ export async function createFireworks(host, { quality = 1 } = {}) {
   });
 
   return {
-    spark, burst, launchShell,
+    spark, burst, launchShell, flowerPot, chakra, pop, ladi, stopGround,
     setEmbers(v) { embers = v; },
     get width() { return W(); },
     get height() { return H(); },

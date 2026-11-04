@@ -2,6 +2,7 @@ import './style.css';
 import { gsap } from 'gsap';
 import { createFireworks, PALETTES, MULTI, FLAME, GOLD } from './fireworks.js';
 import { audio } from './audio.js';
+import { buildSkyline } from './skyline.js';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const Q = RM ? 0.45 : 1;
@@ -90,7 +91,46 @@ async function main() {
   drawGarland();
   addEventListener('resize', drawGarland);
 
-  const fx = await createFireworks($('#fx'), { quality: Q });
+  // Chennai skyline that catches the light of every burst
+  const city = buildSkyline($('#skyline'));
+  let cityGlow = { v: 0 };
+  const lightCity = (color, strength) => {
+    const target = Math.min(.75, .18 + strength / 220);
+    if (target < cityGlow.v) return;
+    city.setLightColor('#' + color.toString(16).padStart(6, '0'));
+    gsap.killTweensOf(cityGlow);
+    cityGlow.v = target;
+    city.lit.setAttribute('opacity', target);
+    gsap.to(cityGlow, { v: 0, duration: 1.6, ease: 'power2.out', onUpdate: () => city.lit.setAttribute('opacity', cityGlow.v.toFixed(3)) });
+  };
+
+  const fx = await createFireworks($('#fx'), { quality: Q, onLight: lightCity });
+
+  /* ---------------- Ground show: flower pots, chakras, tiny crackers ---------------- */
+  let groundTimer = null;
+  const slots = () => [.25, .42, .58, .75].map((s) => s * fx.width);
+  function groundAct() {
+    const W = fx.width, r = Math.random();
+    if (r < .38) fx.flowerPot(pick(slots()));
+    else if (r < .68) fx.chakra(rand(W * .2, W * .8));
+    else if (r < .85) {
+      const n = 3 + ((Math.random() * 4) | 0);
+      for (let i = 0; i < n; i++) later(i * rand(120, 380), () => fx.pop(rand(W * .08, W * .92)));
+    } else {
+      const x = rand(W * .1, W * .4);
+      fx.ladi(x, x + rand(W * .3, W * .5), 18);
+    }
+  }
+  function startGround() {
+    stopGroundShow();
+    const W = fx.width;
+    later(300, () => fx.flowerPot(W * .25));
+    later(700, () => fx.flowerPot(W * .75));
+    later(1500, () => fx.chakra(W * .5));
+    const loop = () => { if (!document.hidden) groundAct(); groundTimer = setTimeout(loop, rand(1800, 3400)); };
+    groundTimer = setTimeout(loop, 4200);
+  }
+  function stopGroundShow() { clearTimeout(groundTimer); }
 
   /* ---------------- Background shows ---------------- */
   let showTimer = null;
@@ -125,14 +165,14 @@ async function main() {
     fx.setEmbers(false);
 
     const name = btn.dataset.name;
-    const label = btn.querySelector('.card-name');
+    const label = btn.querySelector('.p-name');
     const r = label.getBoundingClientRect();
     const c1 = btn.style.getPropertyValue('--c1'), c2 = btn.style.getPropertyValue('--c2');
     gsap.to(btn, { rotateX: 0, rotateY: 0, duration: .3 });
-    $$('.card').forEach((b) => b.classList.add(b === btn ? 'chosen' : 'gone'));
+    $$('.player').forEach((b) => b.classList.add(b === btn ? 'chosen' : 'gone'));
 
     // power-up: the orb releases a ring of light in the card's colours
-    const oc = center(btn.querySelector('.orb'));
+    const oc = center(btn.querySelector('.p-orb'));
     const pal = [hexNum(c1), hexNum(c2), 0xffffff];
     fx.burst(oc.x, oc.y, { type: 'ring', n: 60, speed: 3.2, pal, flash: 60, trail: 0 });
     fx.burst(oc.x, oc.y, { type: 'peony', n: 30, speed: 2, pal, flash: 0, trail: 0 });
@@ -235,6 +275,7 @@ async function main() {
     gsap.to('.reveal', { opacity: 1, y: 0, duration: .7, ease: 'power2.out', stagger: .2, delay: 1.7 });
     later(2600, startGame);
     startShow('party');
+    later(900, startGround);
   }
 
   /* ---------------- Mini-game: light the diyas ---------------- */
@@ -286,6 +327,10 @@ async function main() {
     for (let i = 0; i < shots; i++) {
       later(i * 170, () => fx.launchShell(rand(W * .1, W * .9), rand(H * .08, H * .45)));
     }
+    slots().forEach((x, i) => later(i * 120, () => fx.flowerPot(x, 6)));
+    later(400, () => fx.chakra(W * .33));
+    later(650, () => fx.chakra(W * .67));
+    later(1200, () => fx.ladi(W * .06, W * .94, 30));
     later(shots * 170 + 900, () => {
       fx.burst(W / 2, H * .3, { type: 'heart', n: 160, pal: PALETTES[1], speed: 7, flash: 120 });
       fx.burst(W / 2, H * .3, { type: 'willow', n: 140, speed: 7, flash: 0 });
@@ -298,6 +343,8 @@ async function main() {
   /* ---------------- Reset ---------------- */
   function reset() {
     stopShow();
+    stopGroundShow();
+    fx.stopGround();
     playing = false;
     document.body.classList.remove('game');
     gsap.killTweensOf('.ch, .reveal, .g-diya, .flame-wrap, .halo, #g-hint');
@@ -305,7 +352,7 @@ async function main() {
     gsap.to('.halo', { opacity: 1, duration: .5 });
     diyaBtns.forEach((b) => b.classList.remove('out'));
     greet.classList.add('hidden');
-    $$('.card').forEach((b) => b.classList.remove('chosen', 'gone'));
+    $$('.player').forEach((b) => b.classList.remove('chosen', 'gone'));
     chooser.classList.remove('hidden');
     fx.setEmbers(true);
     busy = false;
@@ -313,7 +360,7 @@ async function main() {
   }
 
   /* ---------------- Wiring ---------------- */
-  $$('.card').forEach((card) => {
+  $$('.player').forEach((card) => {
     // light follows the finger / cursor, and the card tilts toward it
     const track = (e) => {
       if (busy) return;
@@ -321,7 +368,7 @@ async function main() {
       const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
       card.style.setProperty('--mx', `${px * 100}%`);
       card.style.setProperty('--my', `${py * 100}%`);
-      if (!RM) gsap.to(card, { rotateY: (px - .5) * 16, rotateX: (.5 - py) * 16, transformPerspective: 700, duration: .4, ease: 'power2.out' });
+      if (!RM) gsap.to(card, { rotateY: (px - .5) * 10, rotateX: (.5 - py) * 18, transformPerspective: 700, duration: .4, ease: 'power2.out' });
     };
     card.addEventListener('pointermove', track);
     card.addEventListener('pointerdown', track);

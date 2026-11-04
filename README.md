@@ -2,10 +2,10 @@
 
 A mobile-first Diwali greeting for Dishanth and Pravya.
 
-1. **Who are you?** Tap your name.
+1. **Who are you?** Pick your player (Chennai skyline in the background).
 2. Your name lights up and launches like a rocket, then bursts into fireworks.
 3. **Happy Diwali, _Name_!** flies in letter by letter.
-4. Mini-game: tap the 5 diyas to light them for a grand finale. Tap the sky any time for more fireworks.
+4. Flower pots, chakras and tiny crackers go off on the ground. Mini-game: tap the 5 diyas to light them for a grand finale. Tap the sky any time for more fireworks.
 
 Built with [Vite](https://vite.dev), [PixiJS](https://pixijs.com) (WebGL fireworks) and [GSAP](https://gsap.com) (rocket and text animation). All sounds are synthesised with Web Audio; there are no audio files.
 
@@ -24,4 +24,4 @@ npm run dev
 `netlify.toml` already sets the build (`npm run build`, publish `dist`, Node 22).
 In Netlify: **Add new site → Import an existing project → GitHub →** pick this repo, branch `main`, and deploy.
 
-To change the names, edit the `.card` buttons in `index.html`.
+To change the names, edit the `.player` buttons in `index.html`.

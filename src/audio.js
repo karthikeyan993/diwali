@@ -62,6 +62,36 @@ function boom(big = false) {
   }
 }
 
+/** Fizzing hiss for flower pots; `flutter` adds the whirring wobble of a chakra */
+function hiss(dur = 5, vol = .05, flutter = false) {
+  if (!ok()) return;
+  const t = ac.currentTime, s = noise(), f = ac.createBiquadFilter(), g = ac.createGain();
+  f.type = 'bandpass'; f.frequency.value = flutter ? 3200 : 4500; f.Q.value = .7;
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + .4);
+  g.gain.setValueAtTime(vol, t + dur - .8);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(out);
+  if (flutter) {
+    const lfo = ac.createOscillator(), lg = ac.createGain();
+    lfo.frequency.value = 11; lg.gain.value = 900;
+    lfo.connect(lg); lg.connect(f.frequency);
+    lfo.start(t); lfo.stop(t + dur);
+  }
+  s.start(t, Math.random()); s.stop(t + dur + .05);
+}
+
+/** Small cracker pop */
+function pop(loud = false) {
+  if (!ok()) return;
+  const t = ac.currentTime, s = noise(), f = ac.createBiquadFilter(), g = ac.createGain();
+  f.type = 'bandpass'; f.frequency.value = rand(1200, 2200); f.Q.value = .9;
+  g.gain.setValueAtTime(loud ? .7 : rand(.25, .45), t);
+  g.gain.exponentialRampToValueAtTime(.0001, t + .09);
+  s.connect(f); f.connect(g); g.connect(out);
+  s.start(t, Math.random()); s.stop(t + .12);
+}
+
 function chime(step = 0) {
   if (!ok()) return;
   const t = ac.currentTime, freq = CHIME[Math.min(step, CHIME.length - 1)];
@@ -77,6 +107,6 @@ function chime(step = 0) {
 }
 
 export const audio = {
-  unlock, whoosh, boom, chime,
+  unlock, whoosh, boom, chime, hiss, pop,
   toggle() { on = !on; return on; },
 };
