@@ -1,14 +1,21 @@
 # Happy Diwali 🪔
 
-A mobile-first Diwali greeting for Dishanth and Pravya.
+Mobile-first Diwali greetings, one repo, two sites:
 
-1. **Who are you?** Pick your player (Chennai skyline in the background).
-2. Your name lights up and launches like a rocket, then bursts into fireworks.
-3. **Happy Diwali, _Name_!** flies in letter by letter.
-4. Flower pots, chakras and tiny crackers go off on the ground.
-5. Games: touch (or swipe across) the floating crackers to burst them, and light all 5 diyas for a grand finale. Tap the sky any time for more fireworks.
+| Site | Page | For | Theme |
+|---|---|---|---|
+| `SITE=chennai` (default) | `index.html` | Dishanth & Pravya | Chennai: gopuram, mango-leaf toran, diya game, crackers to burst |
+| `SITE=sydney` | `sydney.html` | Yashik | Sydney Nights: Opera House (Vivid colours), Harbour Bridge waterfall, fireworks reflected in the harbour |
 
-Built with [Vite](https://vite.dev), [PixiJS](https://pixijs.com) (WebGL fireworks) and [GSAP](https://gsap.com) (rocket and text animation). All sounds are synthesised with Web Audio; there are no audio files.
+Built with [Vite](https://vite.dev), [PixiJS](https://pixijs.com) (WebGL fireworks) and [GSAP](https://gsap.com). Sounds are synthesised with Web Audio.
+
+## Layout
+
+```
+src/shared/   fireworks engine, sounds, sky canvas, name rocket, greeting letters, base styles
+src/chennai/  Chennai page (skyline, toran, games)
+src/sydney/   Sydney page (harbour)
+```
 
 ## Run locally
 
@@ -20,9 +27,13 @@ npm install
 npm run dev
 ```
 
-## Deploy to Netlify
+Then open `/` for Chennai or `/sydney.html` for Sydney.
 
-`netlify.toml` already sets the build (`npm run build`, publish `dist`, Node 22).
-In Netlify: **Add new site → Import an existing project → GitHub →** pick this repo, branch `main`, and deploy.
+## Deploy (Netlify)
 
-To change the names, edit the `.player` buttons in `index.html`.
+Both sites build from this repo with the same `netlify.toml` (`npm run build`, publish `dist`). The `SITE` environment variable decides which page becomes the site's home page.
+
+- **Chennai site** (existing): nothing to set. It builds the Chennai page by default.
+- **Sydney site**: in Netlify choose **Add new project → Import an existing project → GitHub →** this repo, branch `main`. Then go to **Project configuration → Environment variables**, add `SITE` = `sydney`, and redeploy.
+
+Every push to `main` rebuilds both sites.

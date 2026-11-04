@@ -1,0 +1,143 @@
+/* Shared base for every themed page: layout, screens, rocket, greeting letters, controls. */
+:root {
+  --sky-1: #24104f;
+  --sky-2: #0b0620;
+  --sky-3: #04020c;
+  --gold: #ffd166;
+  --text: #fff7e6;
+  --muted: rgba(255, 247, 230, .78);
+  --faint: rgba(255, 247, 230, .55);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background-color: var(--sky-2);
+  background-image: radial-gradient(130% 85% at 50% 0%, var(--sky-1) 0%, var(--sky-2) 55%, var(--sky-3) 100%);
+  color: var(--text);
+  font-family: 'Baloo 2', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+button { font-family: inherit; }
+
+/* ---------- Sky ---------- */
+#world { position: fixed; inset: 0; pointer-events: none; z-index: 1; }
+#world.shake { animation: shake .55s cubic-bezier(.36, .07, .19, .97); }
+@keyframes shake {
+  10%, 90% { transform: translate(-1px, 1px); }
+  20%, 80% { transform: translate(3px, -2px); }
+  30%, 50%, 70% { transform: translate(-5px, 3px); }
+  40%, 60% { transform: translate(5px, -3px); }
+}
+#sky { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* ---------- Fireworks canvas ---------- */
+#fx { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+#fx canvas { display: block; width: 100%; height: 100%; }
+
+/* ---------- Screens ---------- */
+.screen {
+  position: fixed; inset: 0; z-index: 3;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
+  padding: calc(56px + env(safe-area-inset-top)) 16px calc(110px + env(safe-area-inset-bottom));
+  transition: opacity .5s ease, transform .5s ease, visibility 0s;
+}
+.screen.hidden {
+  opacity: 0; visibility: hidden; pointer-events: none; transform: scale(.96);
+  transition: opacity .5s ease, transform .5s ease, visibility 0s .5s;
+}
+@keyframes rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Chooser header ---------- */
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 7px 16px; border-radius: 999px;
+  border: 1px solid rgba(255, 209, 102, .28);
+  background: linear-gradient(180deg, rgba(255, 209, 102, .12), rgba(255, 209, 102, .03));
+  font: 600 .72rem/1 'Outfit', system-ui, sans-serif; letter-spacing: .28em; text-transform: uppercase;
+  color: #ffe2a0; animation: rise .8s backwards;
+}
+.eyebrow span { color: var(--gold); font-size: .8rem; letter-spacing: 0; }
+.title {
+  font-size: clamp(2.8rem, 13.5vw, 4.8rem); font-weight: 800; line-height: 1; margin: .32em 0 .18em;
+  background: linear-gradient(100deg, #ffe3a6 0%, #ffe3a6 38%, #fff 48%, #fffbe9 50%, #ffe3a6 62%, #f7b958 100%);
+  background-size: 260% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: rise .8s .1s backwards, titleShine 2.4s ease-in-out 1s 1 both;
+  filter: drop-shadow(0 0 22px rgba(255, 150, 40, .38));
+}
+@keyframes titleShine { from { background-position: 100% 0; } to { background-position: -60% 0; } }
+.hint {
+  font: 400 1rem/1.4 'Outfit', system-ui, sans-serif; color: var(--muted);
+  margin-bottom: 28px; animation: rise .8s .2s backwards;
+}
+/* ---------- Rocket name ---------- */
+.rocket {
+  position: fixed; left: 0; top: 0; z-index: 4; pointer-events: none;
+  font: 400 1.38rem/1 'Yatra One', 'Baloo 2', system-ui, sans-serif; letter-spacing: .02em; white-space: nowrap;
+  color: #fff;
+  text-shadow: 0 0 8px #fff, 0 0 20px var(--c1), 0 0 36px var(--c2);
+  will-change: transform;
+}
+.rocket::after {
+  content: ''; position: absolute; left: 50%; top: 92%; width: 16px; height: 30px; margin-left: -8px;
+  border-radius: 50% 50% 50% 50% / 30% 30% 70% 70%;
+  background: radial-gradient(ellipse at 50% 25%, #fff 0 15%, #ffe066 32%, #ff8c1a 58%, rgba(255, 60, 0, 0) 75%);
+  transform-origin: 50% 0; opacity: 0; transition: opacity .2s;
+  animation: thrust .09s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 10px #ff9f1c);
+}
+.rocket.lit::after { opacity: 1; }
+@keyframes thrust { from { transform: scale(.85, .8); } to { transform: scale(1.1, 1.25); } }
+
+/* ---------- Greeting ---------- */
+.g-top {
+  font-size: clamp(2.3rem, 11.5vw, 4.2rem); font-weight: 800; line-height: 1.05; margin-top: 1.1em;
+  color: #ffe7a3;
+  text-shadow: 0 0 2px #fff, 0 0 18px rgba(255, 170, 60, .9), 0 0 40px rgba(255, 120, 20, .5);
+}
+.g-name {
+  font-size: clamp(3.3rem, 17vw, 7rem); font-weight: 800; line-height: 1.05; margin-top: .05em;
+  white-space: nowrap;
+}
+.ch { display: inline-block; }
+/* the wave plays a few times after the reveal, then the letters rest (no permanent GPU layers) */
+.g-top .ch { animation: wave 3.4s ease-in-out 3; animation-delay: calc(var(--i) * -.2s); }
+.g-name .ch {
+  color: var(--c);
+  text-shadow: 0 0 2px #fff, 0 0 16px var(--c), 0 0 34px var(--c);
+  animation: wave 3s ease-in-out 3;
+  animation-delay: calc(var(--i) * -.22s);
+}
+/* `translate` composes with the `transform` GSAP writes, so both run together */
+@keyframes wave { 0%, 100% { translate: 0 0; } 50% { translate: 0 -7px; } }
+.g-msg { max-width: 30ch; margin: 18px auto 0; color: var(--muted); font: 400 1.08rem/1.45 'Outfit', system-ui, sans-serif; }
+.g-hint { margin-top: 10px; font: 500 .95rem/1.4 'Outfit', system-ui, sans-serif; color: var(--gold); min-height: 1.4em; }
+.again {
+  margin-top: 22px; border: 1px solid rgba(255, 247, 230, .3); background: rgba(30, 20, 60, .55);
+  color: var(--text); border-radius: 50%; width: 48px; height: 48px; padding: 0;
+  font: 500 1.35rem/1 'Outfit', system-ui, sans-serif; cursor: pointer;
+}
+.again:active { transform: scale(.96); }
+.again:focus-visible, .sound:focus-visible, .diya-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.reveal { opacity: 0; }
+.sound {
+  position: fixed; z-index: 5; top: calc(100px + env(safe-area-inset-top)); right: 12px;
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 1px solid rgba(255, 247, 230, .25); background: rgba(30, 20, 60, .7);
+  color: var(--text); font-size: 1.1rem; cursor: pointer;
+}
+@keyframes flicker {
+  0%, 100% { transform: scale(1, 1) rotate(-2deg); }
+  25% { transform: scale(.9, 1.1) rotate(3deg); }
+  50% { transform: scale(1.06, .92) rotate(-1deg); }
+  75% { transform: scale(.95, 1.12) rotate(2deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .g-top .ch, .g-name .ch { animation: none; }
+}

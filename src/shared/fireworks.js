@@ -1,6 +1,6 @@
 // WebGL fireworks engine built on PixiJS.
 // Every particle is an additive-blended glow sprite, stretched along its velocity so it reads as a streak.
-import { Application, Container, Graphics, Sprite, Texture, Ticker } from 'pixi.js';
+import { Application, Container, Graphics, Matrix, RenderTexture, Sprite, Texture, Ticker } from 'pixi.js';
 import { audio } from './audio.js';
 
 export const PALETTES = [
@@ -38,10 +38,10 @@ function glowTexture(size = 64) {
 /** A stand-in with the same API, used if WebGL can't start, so the greeting still works. */
 function noopEngine() {
   const noop = () => {};
-  return { spark: noop, burst: noop, launchShell: noop, setEmbers: noop, flowerPot: noop, chakra: noop, pop: noop, ladi: noop, stopGround: noop, spawnTarget: noop, hit: () => false, clearTargets: noop, targetCount: 0, width: innerWidth, height: innerHeight, scale: 1 };
+  return { spark: noop, burst: noop, launchShell: noop, setEmbers: noop, flowerPot: noop, chakra: noop, pop: noop, ladi: noop, stopGround: noop, waterfall: noop, spawnTarget: noop, hit: () => false, clearTargets: noop, targetCount: 0, width: innerWidth, height: innerHeight, scale: 1 };
 }
 
-export async function createFireworks(host, { quality: baseQuality = 1, onLight = null, onTargetBurst = null } = {}) {
+export async function createFireworks(host, { quality: baseQuality = 1, onLight = null, onTargetBurst = null, reflection = null } = {}) {
   // Particle counts scale with `quality`, which adapts to the device so the frame rate holds.
   const smallCores = (navigator.hardwareConcurrency || 8) <= 4;
   let quality = baseQuality * (smallCores ? .7 : 1);
@@ -107,6 +107,7 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
       tw: !!o.tw,
       trail: o.trail || 0,
       split: o.split || 0,
+      floor: o.floor ?? Infinity, // e.g. the water line: sparks vanish when they reach it
       t: 0,
     });
   }
@@ -173,7 +174,9 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
   }
 
   function launchShell(tx, ty, opts = {}) {
-    const sx = tx + rand(-W() * .08, W() * .08), sy = H() + 10, g = .12 * S();
+    // shells rise from the bottom of the screen, or from a launch point (a barge, a bridge)
+    const sx = opts.from ? opts.from.x : tx + rand(-W() * .08, W() * .08);
+    const sy = opts.from ? opts.from.y : H() + 10, g = .12 * S();
     const vy = -Math.sqrt(2 * g * Math.max(60, sy - ty));
     const frames = -vy / g;
     shells.push({ x: sx, y: sy, vx: (tx - sx) / frames, vy, g, opts, sp: sprite() });
@@ -228,6 +231,12 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
     }
   }
   const lerpN = (a, b, t) => a + (b - a) * t;
+
+  /** Bridge waterfall: a curtain of golden sparks pouring from a deck down to the water */
+  function waterfall(x0, x1, y, floor, dur = 7) {
+    emitters.push({ type: 'falls', x0, x1, y, floor, t: 0, dur: dur * 60 });
+    audio.hiss(dur, .06);
+  }
 
   function stopGround() {
     emitters.forEach((e) => { e.t = Math.max(e.t, e.dur - 30); });
@@ -330,7 +339,7 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
       e.t += k;
       const t = e.t / e.dur;
       if (t >= 1.15) {
-        release(e.g);
+        if (e.g) release(e.g);
         if (e.body) e.body.destroy();
         emitters.splice(i, 1);
         continue;
@@ -349,6 +358,12 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
         e.g.position.set(mx, my - 4);
         e.g.scale.set(.9 + env * .5);
         e.g.alpha = env * .8;
+      } else if (e.type === 'falls') {
+        const n = Math.round(((e.x1 - e.x0) / 14) * env * k * quality);
+        for (let j = 0; j < n; j++) {
+          spark(rand(e.x0, e.x1), e.y + rand(0, 2), rand(-.15, .15), rand(0, .6), pick([0xffe7a0, 0xffffff, 0xffd166, 0xffb347]),
+            { g: .05, f: .985, decay: rand(.008, .014), size: rand(1.1, 2), tw: true, floor: e.floor });
+        }
       } else {
         e.x += e.vx * k;
         if (e.x < W() * .08 || e.x > W() * .92) e.vx *= -1;
@@ -369,6 +384,27 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
         e.g.alpha = env;
       }
     }
+  }
+
+  /* ---------- Water reflection: the sky, flipped and squashed onto the water at half resolution ---------- */
+  let reflRT = null, reflSprite = null;
+  const flip = new Matrix();
+  if (reflection) {
+    reflRT = RenderTexture.create({ width: 8, height: 8, resolution: .5 });
+    reflSprite = new Sprite(reflRT);
+    reflSprite.tint = reflection.tint ?? 0xa9c1ff;
+    reflSprite.alpha = reflection.alpha ?? .5;
+    app.stage.addChildAt(reflSprite, 0);
+  }
+  function drawReflection() {
+    const wy = reflection.y(), rh = Math.round(H() - wy);
+    if (rh < 8) { reflSprite.visible = false; return; }
+    if (reflRT.width !== Math.round(W()) || reflRT.height !== rh) reflRT.resize(Math.round(W()), rh);
+    const sq = .8; // reflections look shorter than the real thing
+    flip.set(1, 0, 0, -sq, 0, wy * sq);
+    app.renderer.render({ container: layer, target: reflRT, clear: true, transform: flip });
+    reflSprite.visible = true;
+    reflSprite.position.set(0, wy);
   }
 
   const ticker = new Ticker();
@@ -429,7 +465,7 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
       p.y += p.vy * k;
       p.life -= p.decay * k;
 
-      if (p.life <= 0 || p.y > h + 30) {
+      if (p.life <= 0 || p.y > h + 30 || p.y > p.floor) {
         if (p.split && p.life <= 0) {
           // crossette: each star splits into four
           for (let j = 0; j < 4; j++) {
@@ -458,13 +494,14 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
 
     // only hand a frame to the GPU when something is on screen (plus one to clear the last one)
     const active = parts.length || shells.length || flashes.length || emitters.length || targets.length;
+    if (reflection && (active || drewLast)) drawReflection();
     if (active || drewLast) app.render();
     drewLast = !!active;
   });
   ticker.start();
 
   return {
-    spark, burst, launchShell, flowerPot, chakra, pop, ladi, stopGround, spawnTarget, hit, clearTargets,
+    spark, burst, launchShell, flowerPot, chakra, pop, ladi, stopGround, waterfall, spawnTarget, hit, clearTargets,
     get targetCount() { return targets.length; },
     setEmbers(v) { embers = v; },
     get width() { return W(); },

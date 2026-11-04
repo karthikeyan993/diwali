@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "dev:sydney": "vite --host --open /sydney.html",
     "build": "vite build",
+    "build:sydney": "SITE=sydney vite build",
     "preview": "vite preview --host"
   },
   "dependencies": {

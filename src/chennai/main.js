@@ -1,10 +1,13 @@
+import '../shared/base.css';
 import './style.css';
 import { gsap } from 'gsap';
-import { createFireworks, PALETTES, MULTI, FLAME, GOLD } from './fireworks.js';
-import { audio } from './audio.js';
+import { createFireworks, PALETTES, GOLD } from '../shared/fireworks.js';
+import { audio } from '../shared/audio.js';
+import { createSky } from '../shared/sky.js';
+import { flyName, bigBurst } from '../shared/rocket.js';
+import { revealLetters, center } from '../shared/letters.js';
 import { buildSkyline } from './skyline.js';
 import { buildToran } from './toran.js';
-import { createSky } from './sky.js';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const Q = RM ? 0.45 : 1;
@@ -28,25 +31,6 @@ function shake() {
   world.classList.add('shake');
 }
 
-const RAINBOW = ['#ffd166', '#ff9f1c', '#ff5f8f', '#e45bff', '#9b7bff', '#4fc3ff', '#2ee6c5', '#9dff6a'];
-
-function splitInto(el, text, colors = null) {
-  el.innerHTML = '';
-  el.setAttribute('aria-label', text);
-  return [...text].map((ch, i) => {
-    const s = document.createElement('span');
-    s.className = 'ch';
-    s.setAttribute('aria-hidden', 'true');
-    s.style.setProperty('--i', i);
-    if (colors) s.style.setProperty('--c', colors[i % colors.length]);
-    s.textContent = ch === ' ' ? ' ' : ch;
-    el.appendChild(s);
-    return s;
-  });
-}
-
-const center = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
-
 async function main() {
   createSky($('#sky'), { reducedMotion: RM });
   drawToran();
@@ -65,11 +49,10 @@ async function main() {
   };
 
   let score = 0;
-  const scoreEl = $('#score'), scoreN = $('#score-n'), scoreLabel = $('#score-label');
+  const scoreEl = $('#score'), scoreN = $('#score-n');
   const onTargetBurst = () => {
     score++;
     scoreN.textContent = score;
-    if (score === 1) scoreLabel.textContent = 'Burst';
     scoreEl.classList.remove('bump'); void scoreEl.offsetWidth; scoreEl.classList.add('bump');
     if (score % 10 === 0) { audio.chime(5); shake(); }
   };
@@ -164,105 +147,31 @@ async function main() {
     fx.burst(oc.x, oc.y, { type: 'ring', n: 60, speed: 3.2, pal, flash: 60, trail: 0 });
     fx.burst(oc.x, oc.y, { type: 'peony', n: 30, speed: 2, pal, flash: 0, trail: 0 });
 
-    const el = document.createElement('div');
-    el.className = 'rocket';
-    el.textContent = name;
-    el.style.fontSize = getComputedStyle(label).fontSize;
-    el.style.setProperty('--c1', c1);
-    el.style.setProperty('--c2', c2);
-    document.body.appendChild(el);
-    const ew = el.offsetWidth, eh = el.offsetHeight;
-    const pos = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    const place = (x, y, rotation = 0, scale = 1) => gsap.set(el, { x: x - ew / 2, y: y - eh / 2, rotation, scale });
-    place(pos.x, pos.y);
-
     const W = fx.width, H = fx.height;
-    const start = { ...pos }, target = { x: W / 2, y: Math.max(H * .27, 110) };
-    const rumble = { j: 0 }, flight = { p: 0 };
-
-    const tl = gsap.timeline();
-    tl.add(() => chooser.classList.add('hidden'), .06)
-      .add(() => el.classList.add('lit'), .06)
-      // ignition: rumble and sparks
-      .to(rumble, {
-        j: 2.5, duration: RM ? .2 : .5, ease: 'power1.in',
-        onUpdate() {
-          const j = rumble.j;
-          place(pos.x + rand(-j, j), pos.y + rand(-j, j));
-          for (let i = 0; i < 3; i++) {
-            fx.spark(pos.x + rand(-12, 12), pos.y + eh * .7, rand(-1.8, 1.8), rand(.5, 3), pick(FLAME),
-              { decay: rand(.03, .05), g: .07, size: rand(1.3, 2.5), f: .97 });
-          }
-        },
-      })
-      .add(() => audio.whoosh(1.15, .2))
-      // lift-off: slow start, fast climb, hang at the top
-      .to(flight, {
-        p: 1, duration: 1.15, ease: 'power3.inOut',
-        onUpdate() {
-          const p = flight.p;
-          const nx = start.x + (target.x - start.x) * p + Math.sin(p * Math.PI * 3) * 9 * (1 - p);
-          const dx = nx - pos.x;
-          pos.x = nx;
-          pos.y = start.y + (target.y - start.y) * p;
-          place(pos.x, pos.y, gsap.utils.clamp(-14, 14, dx * 2.5), 1 - .12 * p);
-          const n = 2 + Math.round(5 * Math.sin(p * Math.PI) * Q);
-          for (let i = 0; i < n; i++) {
-            fx.spark(pos.x + rand(-5, 5), pos.y + eh * .9, rand(-.9, .9), rand(1.5, 4), pick(FLAME),
-              { decay: rand(.025, .045), g: .05, size: rand(1.4, 2.9), f: .97 });
-          }
-        },
-      });
-    await tl;
-    el.remove();
-
-    // the big burst
-    const { x, y } = pos;
-    fx.burst(x, y, { type: 'peony', n: 200, pal: MULTI, speed: 7.5, flash: 150, glitter: true, trail: 3 });
-    fx.burst(x, y, { type: 'ring', n: 80, pal: PALETTES[0], speed: 4.5, flash: 0 });
-    audio.boom(true);
+    const { x, y } = await flyName(fx, {
+      text: name, x: r.left + r.width / 2, y: r.top + r.height / 2,
+      fontSize: getComputedStyle(label).fontSize, c1, c2,
+      target: { x: W / 2, y: Math.max(H * .27, 110) },
+      reducedMotion: RM, quality: Q,
+      onIgnite: () => chooser.classList.add('hidden'),
+    });
+    bigBurst(fx, x, y, later);
     shake();
-    try { navigator.vibrate?.([40, 30, 90]); } catch { /* unsupported */ }
-
-    const side = Math.min(W * .3, 170);
-    later(260, () => { fx.burst(x - side, y + rand(20, 60), { type: 'peony', n: 90, flash: 50 }); audio.boom(); });
-    later(480, () => { fx.burst(x + side, y + rand(20, 60), { type: 'peony', n: 90, flash: 50 }); audio.boom(); });
-    later(1000, () => { fx.burst(x, y + Math.min(H * .2, 160), { type: 'heart', n: 120, pal: PALETTES[1], speed: 5, flash: 50 }); audio.boom(); });
 
     later(380, () => revealGreeting(name));
   }
 
   /* ---------------- Greeting ---------------- */
   function revealGreeting(name) {
-    const top = splitInto($('#g-top'), 'Happy Diwali');
-    const shift = (Math.random() * RAINBOW.length) | 0;
-    const letters = splitInto($('#g-name'), name + '!', [...RAINBOW.slice(shift), ...RAINBOW.slice(0, shift)]);
     hint.innerHTML = '&nbsp;';
     gsap.set('.reveal', { opacity: 0, y: 20 });
     greet.classList.remove('hidden');
+    revealLetters(fx, $('#g-top'), $('#g-name'), 'Happy Diwali', name);
 
-    gsap.fromTo(top,
-      { opacity: 0, scale: 2.6, y: -30, rotation: -12, filter: 'blur(10px)' },
-      { opacity: 1, scale: 1, y: 0, rotation: 0, filter: 'blur(0px)', duration: .9, ease: 'back.out(2.2)', stagger: .055 });
-
-    // the name's letters fly in from the burst, each popping a little firework where it lands
-    gsap.fromTo(letters,
-      { opacity: 0, scale: 0, x: () => rand(-90, 90), y: () => rand(-140, -40), rotation: () => rand(-120, 120) },
-      {
-        opacity: 1, scale: 1, x: 0, y: 0, rotation: 0, duration: 1.3, ease: 'elastic.out(1, .55)', delay: .45,
-        stagger: {
-          each: .09,
-          onStart() {
-            const c = center(this.targets()[0]);
-            fx.burst(c.x, c.y, { type: 'peony', n: 22, speed: 2.4, flash: 22, pal: MULTI, trail: 0 });
-          },
-        },
-      });
 
     gsap.to('.reveal', { opacity: 1, y: 0, duration: .7, ease: 'power2.out', stagger: .2, delay: 1.7 });
     score = 0;
     scoreN.textContent = '0';
-    scoreLabel.textContent = 'Touch a cracker!';
     later(2600, startGame);
     startShow('party');
     later(900, startGround);
@@ -279,7 +188,7 @@ async function main() {
     gsap.to('.flame-wrap', { scale: 0, duration: .45, ease: 'back.in(2)', stagger: .08 });
     gsap.to('.halo', { opacity: 0, duration: .5, stagger: .08 });
     document.body.classList.add('game');
-    setHint(`Tap the diyas to light them 🪔 0 / ${diyaBtns.length}`);
+    setHint(`🪔 0 / ${diyaBtns.length}`);
   }
 
   function setHint(text) {
@@ -305,13 +214,13 @@ async function main() {
     }
 
     if (lit === diyaBtns.length) finale();
-    else setHint(`Tap the diyas to light them 🪔 ${lit} / ${diyaBtns.length}`);
+    else setHint(`🪔 ${lit} / ${diyaBtns.length}`);
   }
 
   function finale() {
     playing = false;
     document.body.classList.remove('game');
-    setHint('Woohoo! All diyas lit! 🎉');
+    setHint('🎉');
     clearTimeout(showTimer);
     const W = fx.width, H = fx.height;
     const shots = RM ? 8 : 18;
@@ -328,7 +237,7 @@ async function main() {
       audio.boom(true);
       shake();
     });
-    later(shots * 170 + 2200, () => { setHint('Tap the sky for more fireworks ✨'); startShow('party'); });
+    later(shots * 170 + 2200, () => startShow('party'));
   }
 
   /* ---------------- Reset ---------------- */

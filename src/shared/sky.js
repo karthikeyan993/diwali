@@ -38,15 +38,19 @@ function blobImage(color) {
   return c;
 }
 
-export function createSky(canvas, { reducedMotion = false } = {}) {
+export function createSky(canvas, {
+  reducedMotion = false,
+  beamColors = ['rgba(255,207,107,1)', 'rgba(155,92,255,1)', 'rgba(255,79,154,1)'],
+  blobColors = ['rgba(255,207,107,1)', 'rgba(255,79,154,1)', 'rgba(123,92,255,1)', 'rgba(59,232,255,1)', 'rgba(255,159,28,1)'],
+  starTop = .72,
+} = {}) {
   const ctx = canvas.getContext('2d');
   let W = 0, H = 0, dpr = 1;
   const beams = [
-    { img: beamImage('rgba(255,207,107,1)'), x: .12, speed: .00011, phase: 1.2, alpha: .16 },
-    { img: beamImage('rgba(155,92,255,1)'), x: .5, speed: .00008, phase: 3.4, alpha: .15 },
-    { img: beamImage('rgba(255,79,154,1)'), x: .88, speed: .0001, phase: 0, alpha: .15 },
+    { img: beamImage(beamColors[0]), x: .12, speed: .00011, phase: 1.2, alpha: .16 },
+    { img: beamImage(beamColors[1]), x: .5, speed: .00008, phase: 3.4, alpha: .15 },
+    { img: beamImage(beamColors[2]), x: .88, speed: .0001, phase: 0, alpha: .15 },
   ];
-  const blobColors = ['rgba(255,207,107,1)', 'rgba(255,79,154,1)', 'rgba(123,92,255,1)', 'rgba(59,232,255,1)', 'rgba(255,159,28,1)'];
   const blobs = blobColors.concat(blobColors[0]).map((c) => ({
     img: blobImage(c), x: rand(0, 1), y: rand(.05, .85), r: rand(25, 75), a: rand(.12, .28),
     dx: rand(-60, 60), dy: rand(-80, 40), sp: rand(.00005, .0001), ph: rand(0, 6),
@@ -59,7 +63,7 @@ export function createSky(canvas, { reducedMotion = false } = {}) {
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const n = Math.round(Math.min(80, (W * H) / 5500));
-    stars = Array.from({ length: n }, () => ({ x: rand(0, W), y: rand(0, H * .72), s: rand(.6, 1.5), sp: rand(.0012, .003), ph: rand(0, 6) }));
+    stars = Array.from({ length: n }, () => ({ x: rand(0, W), y: rand(0, H * starTop), s: rand(.6, 1.5), sp: rand(.0012, .003), ph: rand(0, 6) }));
   }
 
   function draw(t) {

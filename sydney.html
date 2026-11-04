@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#071232">
+  <meta name="description" content="A Sydney Nights Diwali surprise for Yashik">
+  <title>Happy Diwali, Yashik</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎆</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;800&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Sky: one canvas for beams/bokeh/stars, then Sydney Harbour -->
+  <div id="world" aria-hidden="true">
+    <canvas id="sky"></canvas>
+    <div id="harbour"></div>
+  </div>
+
+  <!-- WebGL fireworks (PixiJS), reflected in the harbour -->
+  <div id="fx"></div>
+
+  <button class="sound" id="sound" aria-label="Mute sound" aria-pressed="false">🔊</button>
+
+  <main>
+    <section id="start" class="screen">
+      <p class="eyebrow"><span>✦</span> Diwali 2026 · Sydney Nights <span>✦</span></p>
+      <h1 class="title">Yashik, ready?</h1>
+      <p class="hint">The whole harbour is waiting for your signal</p>
+      <button class="launch" id="launch">
+        <span class="l-spark" aria-hidden="true"></span>
+        <span class="l-label">Light up Sydney</span>
+        <span class="l-go" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+    </section>
+
+    <section id="greet" class="screen hidden" aria-live="polite">
+      <p class="g-top" id="g-top"></p>
+      <h2 class="g-name" id="g-name"></h2>
+      <button class="again reveal" id="again" aria-label="Watch again">↺</button>
+    </section>
+  </main>
+
+  <script type="module" src="/src/sydney/main.js"></script>
+</body>
+</html>
