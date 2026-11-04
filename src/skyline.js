@@ -15,23 +15,53 @@ const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 const windows = [];
 const win = (x, y, w = 3, h = 4, p = .45) => { if (rnd() < p) windows.push([x, y, w, h, rnd()]); };
 
-/** Kapaleeshwarar-style gopuram: stepped tiers, barrel-vault crown, kalasams */
+/** Kapaleeshwarar-style gopuram: stone base with a lit doorway, nine stepped tiers lined with
+ *  sculpture silhouettes and corner mini-shrines, a barrel-vault crown with horns and kalasams,
+ *  and festival serial lights running up its edges. */
+const lights = [];
+const door = [];
 function gopuram(cx) {
-  const d = [R(cx - 62, 290, 124, 30)];
-  const n = 7, yb0 = 290, top = 116, th = (yb0 - top) / n;
+  const d = [];
+  // plinth + base storey
+  d.push(R(cx - 84, 296, 168, 24), R(cx - 80, 292, 160, 4), R(cx - 76, 258, 152, 34), R(cx - 80, 254, 160, 4));
+  for (let x = cx - 72; x <= cx + 72; x += 12) if (Math.abs(x - cx) > 18) d.push(R(x - 1.5, 262, 3, 28)); // pilaster hint
+  door.push(`M${cx - 12} 320V284Q${cx - 12} 270 ${cx} 267Q${cx + 12} 270 ${cx + 12} 284V320Z`);
+
+  const n = 9, yb0 = 254, top = 104, th = (yb0 - top) / n;
+  let hb = 74;
   for (let i = 0; i < n; i++) {
     const yb = yb0 - i * th, yt = yb - th;
-    const hb = lerp(54, 22, i / n), ht = lerp(54, 22, (i + 1) / n);
-    d.push(P([cx - hb - 3, yb], [cx + hb + 3, yb], [cx + hb + 3, yb - 3], [cx + ht, yt], [cx - ht, yt], [cx - hb - 3, yb - 3]));
-    win(cx - 2, yt + th * .35, 4, 6, .9);
-    if (i < 5) { win(cx - hb * .55, yt + th * .45, 3, 4, .5); win(cx + hb * .55 - 3, yt + th * .45, 3, 4, .5); }
+    const ht = hb - 2;
+    // tier body with a cornice ledge
+    d.push(P([cx - hb - 4, yb], [cx + hb + 4, yb], [cx + hb + 4, yb - 2.6], [cx + ht, yt + 1], [cx - ht, yt + 1], [cx - hb - 4, yb - 2.6]));
+    // sculpture figures along the top edge
+    for (let x = cx - ht + 6; x <= cx + ht - 6; x += 6.5) {
+      const h = 2.2 + ((x * 13) % 3) * .6;
+      d.push(`M${f(x - 1.6)} ${f(yt + 1)}v${f(-h + 1)}q1.6 -2 3.2 0v${f(h - 1)}z`);
+    }
+    // corner mini-shrines (kudu) stand out on the silhouette
+    for (const sx of [-1, 1]) {
+      const x = cx + sx * (ht - 2);
+      d.push(R(x - 2.6, yt - 3, 5.2, 4), `M${f(x - 3.4)} ${f(yt - 3)}Q${f(x)} ${f(yt - 8)} ${f(x + 3.4)} ${f(yt - 3)}Z`);
+    }
+    // central arched opening, lit
+    windows.push([cx - 2.5, yt + th * .32, 5, Math.min(9, th * .55), .95]);
+    if (i < 6) for (const sx of [-1, 1]) win(cx + sx * hb * .5 - 1.5, yt + th * .45, 3, 5, .55);
+    // serial lights down both slopes
+    for (const sx of [-1, 1]) for (let k = 0; k < 2; k++) lights.push([cx + sx * lerp(hb + 3, ht, k / 2), lerp(yb - 3, yt + 1, k / 2)]);
+    hb = ht - 2.6;
   }
-  d.push(`M${cx - 30} ${top}Q${cx - 34} ${top - 16} ${cx - 24} ${top - 20}H${cx + 24}Q${cx + 34} ${top - 16} ${cx + 30} ${top}Z`);
-  d.push(`M${cx - 30} ${top - 10}q-9 -6 -5 -15l3 2q-2 6 3 9z`, `M${cx + 30} ${top - 10}q9 -6 5 -15l-3 2q2 6 -3 9z`);
-  for (let k = -2; k <= 2; k++) {
-    const x = cx + k * 10, y = top - 20;
-    d.push(`M${x - 3} ${y}q0 -6 3 -8q3 2 3 8z`, R(x - .7, y - 13, 1.4, 6));
+  // barrel-vault crown (shala) with kirtimukha horns
+  const cy = top;
+  d.push(`M${cx - 34} ${cy}V${cy - 8}Q${cx - 34} ${cy - 20} ${cx - 24} ${cy - 22}H${cx + 24}Q${cx + 34} ${cy - 20} ${cx + 34} ${cy - 8}V${cy}Z`);
+  d.push(`M${cx - 34} ${cy - 12}q-10 -5 -7 -16l3 1.5q-2 7 4 10z`, `M${cx + 34} ${cy - 12}q10 -5 7 -16l-3 1.5q2 7 -4 10z`);
+  windows.push([cx - 4, cy - 15, 8, 9, .95]);
+  for (let k = -3; k <= 3; k++) {
+    const x = cx + k * 8.4, y = cy - 22;
+    d.push(`M${x - 3} ${y}q-.6 -5 3 -6.5q3.6 1.5 3 6.5z`, R(x - .7, y - 13, 1.4, 7), `M${x - 1.6} ${y - 6.5}a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0`);
+    lights.push([x, y - 14]);
   }
+  for (let x = cx - 30; x <= cx + 30; x += 6) lights.push([x, cy - 22.5]);
   return d;
 }
 
@@ -96,14 +126,15 @@ function fillers() {
 }
 
 export function buildSkyline(el) {
-  windows.length = 0;
+  windows.length = 0; lights.length = 0; door.length = 0;
   seed = 7;
   const back = fillers();
-  const g = gopuram(420);
-  const c = central(605);
-  const l = lighthouse(785);
-  const s = santhome(960);
-  const front = [...ripon(120), ...lic(265), ...g, ...c.d, ...l.d, ...s.d];
+  const g = gopuram(600);
+  const c = central(818);
+  const l = lighthouse(985);
+  const s = santhome(1110);
+  const front = [...ripon(150), ...lic(380), ...g, ...c.d, ...l.d, ...s.d];
+  const lightSvg = lights.map(([x, y], i) => `<circle class="sl" cx="${f(x)}" cy="${f(y)}" r="1.15" style="--d:${(i % 2) * -.9}s"/>`).join('');
 
   const winSvg = windows.map(([x, y, w, h, r]) =>
     `<rect x="${f(x)}" y="${f(y)}" width="${w}" height="${h}" rx=".6" opacity="${f(.35 + r * .55)}"${r > .82 ? ` class="tw" style="animation-delay:${f(-r * 9)}s"` : ''}/>`).join('');
@@ -120,6 +151,9 @@ export function buildSkyline(el) {
     <linearGradient id="cityLit" gradientUnits="userSpaceOnUse" x1="0" y1="60" x2="0" y2="${G}">
       <stop id="cityLitStop" offset="0" stop-color="#ffd166" stop-opacity=".85"/><stop offset="1" stop-color="#ffd166" stop-opacity="0"/>
     </linearGradient>
+    <linearGradient id="doorGrad" gradientUnits="userSpaceOnUse" x1="0" y1="266" x2="0" y2="${G}">
+      <stop offset="0" stop-color="#ffd27a"/><stop offset=".6" stop-color="#ff9a3c"/><stop offset="1" stop-color="#c2521c"/>
+    </linearGradient>
     <linearGradient id="beamGrad" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#fff1c2" stop-opacity=".55"/><stop offset="1" stop-color="#fff1c2" stop-opacity="0"/>
     </linearGradient>
@@ -127,10 +161,12 @@ export function buildSkyline(el) {
     <path id="cityFront" d="${front.join('')}"/>
   </defs>
   <path d="${back.join('')}" fill="#120b30" opacity=".85"/>
-  <path class="beam-l" d="M${l.lamp[0]} ${l.lamp[1]}L${l.lamp[0] + 520} ${l.lamp[1] - 34}L${l.lamp[0] + 520} ${l.lamp[1] + 30}Z" fill="url(#beamGrad)"/>
+  <path class="beam-l" style="transform-origin:${l.lamp[0]}px ${l.lamp[1]}px" d="M${l.lamp[0]} ${l.lamp[1]}L${l.lamp[0] + 520} ${l.lamp[1] - 34}L${l.lamp[0] + 520} ${l.lamp[1] + 30}Z" fill="url(#beamGrad)"/>
   <use href="#cityFront" fill="url(#cityFill)" stroke="url(#cityRim)" stroke-width="1.1"/>
   <use id="cityLitLayer" href="#cityFront" fill="url(#cityLit)" opacity="0"/>
   <g class="city-windows" fill="#ffcf6b">${winSvg}</g>
+  <path d="${door.join('')}" fill="url(#doorGrad)" filter="url(#cityGlow)" opacity=".9"/>
+  <g fill="#ffe7a0" filter="url(#cityGlow)">${lightSvg}</g>
   <g filter="url(#cityGlow)">
     <circle cx="${c.clock[0]}" cy="${c.clock[1]}" r="9" fill="#ffe9b0" opacity=".9"/>
     <circle cx="${s.rose[0]}" cy="${s.rose[1]}" r="5" fill="#ffb3d9" opacity=".7"/>

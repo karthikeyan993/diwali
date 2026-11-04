@@ -39,7 +39,10 @@ button { font-family: inherit; }
   animation: twinkle var(--d) ease-in-out infinite; animation-delay: var(--delay);
 }
 @keyframes twinkle { 0%, 100% { opacity: .12; transform: scale(.7); } 50% { opacity: .95; transform: scale(1.25); } }
-#garland { position: absolute; top: 0; left: 0; width: 100%; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .4)); }
+#toran { position: absolute; top: 0; left: 0; right: 0; height: 96px; }
+#toran svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 5px 6px rgba(0, 0, 0, .45)); }
+#toran .strand { transform-box: fill-box; transform-origin: 50% 0; animation: sway var(--t) ease-in-out infinite alternate; animation-delay: var(--d); }
+@keyframes sway { from { transform: rotate(-2.2deg); } to { transform: rotate(2.2deg); } }
 
 /* ---------- Fireworks canvas ---------- */
 #fx { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
@@ -105,74 +108,90 @@ button { font-family: inherit; }
   margin-bottom: 28px; animation: rise .8s .2s backwards;
 }
 
-/* ---------- Player rows ---------- */
+/* ---------- Player buttons: Kanjivaram silk with gold zari ---------- */
 @property --a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
 
-.players { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 300px; }
+.players { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 290px; }
 .player {
-  position: relative; isolation: isolate;
-  display: flex; align-items: center; gap: 14px;
-  height: 66px; padding: 0 12px 0 11px;
-  border: 0; border-radius: 20px; color: #fff; cursor: pointer; text-align: left;
+  position: relative; isolation: isolate; overflow: hidden;
+  display: flex; align-items: center; gap: 12px;
+  height: 64px; padding: 0 12px 4px 14px;
+  border: 0; border-radius: 14px; color: #fff3d6; cursor: pointer; text-align: left;
   background:
-    radial-gradient(150px circle at var(--mx, -40%) var(--my, 50%), color-mix(in srgb, var(--c1) 22%, transparent), transparent 70%),
-    linear-gradient(180deg, rgba(34, 23, 78, .82), rgba(14, 9, 38, .9));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .09), inset 0 1px 0 rgba(255, 255, 255, .12), 0 14px 30px -14px rgba(0, 0, 0, .7), 0 0 26px -10px var(--c1);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    /* temple ("gopuram") border woven along the bottom */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='9'%3E%3Cpath d='M0 9L6 1.5L12 9Z' fill='%23e9c46a'/%3E%3Ccircle cx='6' cy='6.4' r='1.1' fill='%23000' fill-opacity='.35'/%3E%3C/svg%3E") left 0 bottom 6px / 12px 9px repeat-x,
+    /* tiny zari dots along the top */
+    radial-gradient(circle, rgba(233, 196, 106, .9) .9px, transparent 1.3px) left 4px top 7px / 9px 3px repeat-x,
+    /* finger-following sheen */
+    radial-gradient(130px circle at var(--mx, -40%) var(--my, 50%), rgba(255, 230, 170, .22), transparent 70%),
+    /* silk weave + sheen */
+    linear-gradient(115deg, rgba(255, 255, 255, .16), transparent 38%, transparent 62%, rgba(255, 255, 255, .07)),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .03) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, var(--silk), var(--silk2));
+  box-shadow:
+    inset 0 0 0 1.5px #e9c46a,
+    inset 0 0 0 3.5px var(--silk2),
+    inset 0 0 0 4.3px rgba(233, 196, 106, .6),
+    0 12px 26px -12px rgba(0, 0, 0, .75),
+    0 0 22px -8px rgba(255, 183, 3, .55);
   animation: rowIn .8s cubic-bezier(.2, .9, .25, 1.1) backwards;
   animation-delay: calc(.35s + var(--n) * .12s);
   transition: opacity .4s ease, scale .4s ease, filter .4s ease, translate .4s ease;
 }
 @keyframes rowIn { from { opacity: 0; transform: translateY(26px) scale(.96); } }
 
-/* a thin neon light that runs around the edge */
+/* a glint of light running around the zari border */
 .player::before {
-  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1.3px; pointer-events: none;
-  background: conic-gradient(from var(--a), transparent 0deg 230deg, var(--c2) 290deg, #fff 326deg, var(--c1) 342deg, transparent 360deg);
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1.6px; pointer-events: none;
+  background: conic-gradient(from var(--a), transparent 0deg 250deg, #ffe6a0 310deg, #fff 335deg, #ffd166 345deg, transparent 360deg);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
-  animation: spin 4s linear infinite; animation-delay: calc(var(--n) * -2s);
+  animation: spin 4.5s linear infinite; animation-delay: calc(var(--n) * -2.2s);
 }
 @keyframes spin { to { --a: 360deg; } }
 
-.p-orb {
-  position: relative; flex: none; width: 42px; height: 42px; border-radius: 50%;
-  display: grid; place-items: center;
-  background: radial-gradient(circle at 34% 28%, #fff 0 5%, var(--c1) 34%, var(--c2) 76%, color-mix(in srgb, var(--c2) 45%, #000) 100%);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--c1) 65%, transparent), inset -3px -4px 8px rgba(0, 0, 0, .28);
+/* small lit diya instead of an initial */
+.p-diya { position: relative; flex: none; width: 34px; height: 34px; }
+.p-bowl {
+  position: absolute; left: 3px; right: 3px; bottom: 6px; height: 12px;
+  background: linear-gradient(180deg, #f6a04d, #b5471b 70%, #7a2e12);
+  border-radius: 6px 6px 50% 50% / 3px 3px 100% 100%;
+  box-shadow: inset 0 2px 0 rgba(255, 220, 150, .6);
 }
-.p-orb b { font: 800 1.2rem/1 'Baloo 2', system-ui, sans-serif; translate: 0 1px; text-shadow: 0 1px 6px rgba(0, 0, 0, .35); }
-.p-ring {
-  position: absolute; inset: -5px; border-radius: 50%;
-  border: 1.2px solid color-mix(in srgb, var(--c1) 55%, transparent);
-  animation: orbit 5s linear infinite;
+.p-bowl::before { content: ''; position: absolute; left: 5px; right: 5px; top: -2px; height: 4px; border-radius: 50%; background: #4a1808; }
+.p-flame {
+  position: absolute; left: 50%; bottom: 17px; width: 9px; height: 15px; margin-left: -4.5px;
+  border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%;
+  background: radial-gradient(ellipse at 50% 78%, #fff 0 16%, #ffe066 32%, #ff9f1c 62%, rgba(255, 80, 0, 0) 78%);
+  transform-origin: 50% 100%;
+  animation: flicker 1.2s ease-in-out infinite; animation-delay: calc(var(--n) * -.5s);
+  filter: drop-shadow(0 0 5px #ffb703) drop-shadow(0 0 10px rgba(255, 140, 26, .9));
 }
-.p-ring::before {
-  content: ''; position: absolute; top: -3px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px;
-  border-radius: 50%; background: #fff; box-shadow: 0 0 6px #fff, 0 0 12px var(--c1);
-}
-@keyframes orbit { from { transform: rotateX(68deg) rotateZ(0); } to { transform: rotateX(68deg) rotateZ(360deg); } }
 
-.p-text { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.p-name { font: 800 1.28rem/1 'Baloo 2', system-ui, sans-serif; letter-spacing: .01em; translate: 0 2px; }
+.p-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.p-name {
+  font: 400 1.38rem/1.05 'Yatra One', 'Baloo 2', system-ui, sans-serif; letter-spacing: .02em;
+  color: #fff1cf; text-shadow: 0 1px 0 rgba(0, 0, 0, .35), 0 0 12px rgba(255, 200, 90, .45);
+  translate: 0 2px;
+}
 .p-sub {
-  font: 500 .6rem/1 'Outfit', system-ui, sans-serif; letter-spacing: .16em; text-transform: uppercase;
-  color: color-mix(in srgb, var(--c1) 75%, #fff); opacity: .85;
+  font: 500 .58rem/1 'Outfit', system-ui, sans-serif; letter-spacing: .18em; text-transform: uppercase;
+  color: #f3d58a; opacity: .9;
 }
 .p-go {
-  flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
-  color: var(--c1);
-  background: color-mix(in srgb, var(--c1) 14%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c1) 40%, transparent);
+  flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  color: #3a1d00;
+  background: radial-gradient(circle at 35% 30%, #fff2c4, #f0c35a 55%, #b8862a);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .18), 0 0 14px rgba(255, 200, 80, .55);
 }
 .p-go svg { animation: nudgeR 1.6s ease-in-out infinite; }
-@keyframes nudgeR { 50% { translate: 3px 0; } }
+@keyframes nudgeR { 50% { translate: 2px 0; } }
 
 .player:active { scale: .97; }
 .player:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
 .player.gone { opacity: 0; translate: 0 14px; filter: blur(5px); }
 .player.chosen .p-name { opacity: 0; }
-.player.chosen .p-orb, .player.chosen .p-sub, .player.chosen .p-go { opacity: 0; scale: 1.3; transition: opacity .3s, scale .3s; }
+.player.chosen .p-diya, .player.chosen .p-sub, .player.chosen .p-go { opacity: 0; scale: 1.3; transition: opacity .3s, scale .3s; }
 
 /* ---------- Chennai skyline ---------- */
 #skyline {
@@ -188,7 +207,7 @@ button { font-family: inherit; }
 #skyline svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 #skyline .tw { animation: winTw 6s ease-in-out infinite; }
 @keyframes winTw { 0%, 100% { opacity: .85; } 50% { opacity: .15; } }
-#skyline .beam-l { transform-box: view-box; transform-origin: 785px 126px; animation: lighthouse 7s ease-in-out infinite; }
+#skyline .beam-l { transform-box: view-box; animation: lighthouse 7s ease-in-out infinite; }
 @keyframes lighthouse {
   0% { transform: scaleX(1); opacity: .55; }
   45% { transform: scaleX(.05); opacity: .9; }
@@ -196,12 +215,14 @@ button { font-family: inherit; }
   100% { transform: scaleX(-1); opacity: .55; }
 }
 #skyline .lamp { animation: blinkLamp 7s ease-in-out infinite; }
+#skyline .sl { animation: serial 1.8s steps(2, jump-none) infinite; animation-delay: var(--d); }
+@keyframes serial { 0% { opacity: 1; } 100% { opacity: .25; } }
 @keyframes blinkLamp { 0%, 100% { opacity: .6; } 47% { opacity: 1; } }
 
 /* ---------- Rocket name ---------- */
 .rocket {
   position: fixed; left: 0; top: 0; z-index: 4; pointer-events: none;
-  font-weight: 800; font-size: 1.6rem; line-height: 1; letter-spacing: .02em; white-space: nowrap;
+  font: 400 1.38rem/1 'Yatra One', 'Baloo 2', system-ui, sans-serif; letter-spacing: .02em; white-space: nowrap;
   color: #fff;
   text-shadow: 0 0 8px #fff, 0 0 20px var(--c1), 0 0 36px var(--c2);
   will-change: transform;
@@ -218,9 +239,8 @@ button { font-family: inherit; }
 @keyframes thrust { from { transform: scale(.85, .8); } to { transform: scale(1.1, 1.25); } }
 
 /* ---------- Greeting ---------- */
-.g-diya { font-size: 2.4rem; line-height: 1; }
 .g-top {
-  font-size: clamp(2.3rem, 11.5vw, 4.2rem); font-weight: 800; line-height: 1.05; margin-top: .25em;
+  font-size: clamp(2.3rem, 11.5vw, 4.2rem); font-weight: 800; line-height: 1.05; margin-top: 1.1em;
   color: #ffe7a3;
   text-shadow: 0 0 2px #fff, 0 0 18px rgba(255, 170, 60, .9), 0 0 40px rgba(255, 120, 20, .5);
 }
@@ -254,33 +274,43 @@ button { font-family: inherit; }
 }
 .again:active { transform: scale(.96); }
 .again:focus-visible, .sound:focus-visible, .diya-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+#greet { touch-action: none; padding-top: calc(96px + env(safe-area-inset-top)); padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 .reveal { opacity: 0; }
+.score {
+  position: absolute; top: calc(102px + env(safe-area-inset-top)); left: 12px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px 8px 10px; border-radius: 999px;
+  font: 500 .8rem/1 'Outfit', system-ui, sans-serif; letter-spacing: .06em; color: var(--muted);
+  background: rgba(20, 12, 46, .6); border: 1px solid rgba(255, 209, 102, .3);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.score em { font-style: normal; }
+.score b { font: 600 1rem/1 'Outfit', system-ui, sans-serif; color: var(--gold); min-width: 1ch; }
+.score.bump { animation: bump .35s ease; }
+@keyframes bump { 40% { scale: 1.18; } }
 
 .sound {
-  position: fixed; z-index: 5; top: calc(54px + env(safe-area-inset-top)); right: 12px;
+  position: fixed; z-index: 5; top: calc(100px + env(safe-area-inset-top)); right: 12px;
   width: 42px; height: 42px; border-radius: 50%;
   border: 1px solid rgba(255, 247, 230, .25); background: rgba(255, 255, 255, .08);
   color: var(--text); font-size: 1.1rem; cursor: pointer;
   backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
 }
 
-/* ---------- Diyas (decor + mini-game) ---------- */
+/* ---------- Diyas: mini-game row inside the greeting ---------- */
 .diyas {
-  position: fixed; z-index: 4; left: 0; right: 0;
-  bottom: calc(8px + env(safe-area-inset-bottom));
-  display: flex; justify-content: space-evenly; align-items: flex-end;
-  pointer-events: none;
+  display: flex; justify-content: center; align-items: flex-end; gap: 2px;
+  margin-top: 6px;
 }
 .diya-btn {
   position: relative; display: flex; align-items: flex-end; justify-content: center;
-  width: 60px; height: 74px; padding-bottom: 8px;
+  width: 56px; height: 66px; padding-bottom: 6px;
   background: none; border: 0; border-radius: 16px; cursor: pointer; pointer-events: none;
 }
 body.game .diya-btn { pointer-events: auto; }
 body.game .diya-btn.out .diya { animation: nudge 1.1s ease-in-out infinite; }
 @keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 .diya {
-  position: relative; display: block; width: 50px; height: 22px;
+  position: relative; display: block; width: 44px; height: 20px;
   background: linear-gradient(180deg, #f08a24 0%, #c4521c 55%, #7a2e12 100%);
   border-radius: 8px 8px 50% 50% / 5px 5px 100% 100%;
   box-shadow: inset 0 3px 0 rgba(255, 220, 150, .55);
@@ -290,12 +320,12 @@ body.game .diya-btn.out .diya { animation: nudge 1.1s ease-in-out infinite; }
   border-radius: 50%; background: #4a1808;
 }
 .halo {
-  position: absolute; left: 50%; bottom: -20px; width: 150px; height: 110px; margin-left: -75px;
+  position: absolute; left: 50%; bottom: -16px; width: 110px; height: 90px; margin-left: -55px;
   border-radius: 50%; pointer-events: none;
   background: radial-gradient(closest-side, rgba(255, 160, 40, .38), rgba(255, 120, 20, 0));
 }
 .flame-wrap {
-  position: absolute; left: 50%; bottom: 28px; width: 12px; height: 24px; margin-left: -6px;
+  position: absolute; left: 50%; bottom: 24px; width: 12px; height: 24px; margin-left: -6px;
   transform-origin: 50% 100%;
 }
 .flame {
@@ -316,5 +346,5 @@ body.game .diya-btn.out .diya { animation: nudge 1.1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
   .g-top .ch, .g-name .ch { animation-name: none, hue; }
   .star { animation: none; opacity: .6; }
-  .beam, .bokeh, .player, .p-ring, #skyline .tw, #skyline .beam-l { animation: none; }
+  .beam, .bokeh, .player, .p-flame, #toran .strand, #skyline .tw, #skyline .sl, #skyline .beam-l { animation: none; }
 }

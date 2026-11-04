@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { createFireworks, PALETTES, MULTI, FLAME, GOLD } from './fireworks.js';
 import { audio } from './audio.js';
 import { buildSkyline } from './skyline.js';
+import { buildToran } from './toran.js';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const Q = RM ? 0.45 : 1;
@@ -35,32 +36,7 @@ function makeBokeh() {
 
 const hexNum = (c) => parseInt(c.trim().slice(1), 16);
 
-function drawGarland() {
-  const W = innerWidth;
-  const n = Math.max(3, Math.round(W / 120));
-  const sw = W / n, depth = Math.min(34, sw * .3), h = depth + 34;
-  let html = '';
-  for (let i = 0; i < n; i++) {
-    const per = 15;
-    for (let j = 0; j <= per; j++) {
-      const t = j / per, x = (i * sw + t * sw).toFixed(1), y = 7 + depth * Math.sin(Math.PI * t);
-      html += `<circle cx="${x}" cy="${y.toFixed(1)}" r="5.6" fill="url(#mg${j % 2 ? 1 : 2})"/>`;
-      if (j % 3 === 1) {
-        const ly = (y - 6).toFixed(1);
-        html += `<ellipse cx="${x}" cy="${ly}" rx="2.4" ry="5" fill="#2f9e44" transform="rotate(${((t - .5) * 70).toFixed(0)} ${x} ${ly})"/>`;
-      }
-    }
-    if (i > 0) {
-      const x = (i * sw).toFixed(1);
-      html += `<line x1="${x}" y1="10" x2="${x}" y2="${h - 12}" stroke="#ffd166" stroke-width="1.4"/>` +
-        `<path d="M${x - 5} ${h - 12} h10 l-2 9 h-6z" fill="#ffb703"/><circle cx="${x}" cy="${h - 2}" r="2" fill="#ffe08a"/>`;
-    }
-  }
-  const svg = $('#garland');
-  svg.setAttribute('viewBox', `0 0 ${W} ${h}`);
-  svg.style.height = h + 'px';
-  $('#garland-g').innerHTML = html;
-}
+const drawToran = () => buildToran($('#toran'), innerWidth);
 
 function shake() {
   if (RM) return;
@@ -88,8 +64,8 @@ const center = (el) => { const r = el.getBoundingClientRect(); return { x: r.lef
 async function main() {
   makeStars();
   makeBokeh();
-  drawGarland();
-  addEventListener('resize', drawGarland);
+  drawToran();
+  addEventListener('resize', drawToran);
 
   // Chennai skyline that catches the light of every burst
   const city = buildSkyline($('#skyline'));
@@ -104,11 +80,33 @@ async function main() {
     gsap.to(cityGlow, { v: 0, duration: 1.6, ease: 'power2.out', onUpdate: () => city.lit.setAttribute('opacity', cityGlow.v.toFixed(3)) });
   };
 
-  const fx = await createFireworks($('#fx'), { quality: Q, onLight: lightCity });
+  let score = 0;
+  const scoreEl = $('#score'), scoreN = $('#score-n'), scoreLabel = $('#score-label');
+  const onTargetBurst = () => {
+    score++;
+    scoreN.textContent = score;
+    if (score === 1) scoreLabel.textContent = 'Burst';
+    scoreEl.classList.remove('bump'); void scoreEl.offsetWidth; scoreEl.classList.add('bump');
+    if (score % 10 === 0) { audio.chime(5); shake(); }
+  };
+
+  const fx = await createFireworks($('#fx'), { quality: Q, onLight: lightCity, onTargetBurst });
+
+  /* ---------------- Floating crackers game ---------------- */
+  let targetTimer = null;
+  function startTargets() {
+    stopTargets();
+    const loop = () => {
+      if (!document.hidden && fx.targetCount < 3) fx.spawnTarget();
+      targetTimer = setTimeout(loop, rand(1100, 2200));
+    };
+    loop();
+  }
+  function stopTargets() { clearTimeout(targetTimer); }
 
   /* ---------------- Ground show: flower pots, chakras, tiny crackers ---------------- */
   let groundTimer = null;
-  const slots = () => [.25, .42, .58, .75].map((s) => s * fx.width);
+  const slots = () => [.1, .27, .73, .9].map((s) => s * fx.width); // keep the temple doorway clear
   function groundAct() {
     const W = fx.width, r = Math.random();
     if (r < .38) fx.flowerPot(pick(slots()));
@@ -124,8 +122,8 @@ async function main() {
   function startGround() {
     stopGroundShow();
     const W = fx.width;
-    later(300, () => fx.flowerPot(W * .25));
-    later(700, () => fx.flowerPot(W * .75));
+    later(300, () => fx.flowerPot(W * .2));
+    later(700, () => fx.flowerPot(W * .8));
     later(1500, () => fx.chakra(W * .5));
     const loop = () => { if (!document.hidden) groundAct(); groundTimer = setTimeout(loop, rand(1800, 3400)); };
     groundTimer = setTimeout(loop, 4200);
@@ -171,8 +169,8 @@ async function main() {
     gsap.to(btn, { rotateX: 0, rotateY: 0, duration: .3 });
     $$('.player').forEach((b) => b.classList.add(b === btn ? 'chosen' : 'gone'));
 
-    // power-up: the orb releases a ring of light in the card's colours
-    const oc = center(btn.querySelector('.p-orb'));
+    // power-up: the little diya releases a ring of light
+    const oc = center(btn.querySelector('.p-diya'));
     const pal = [hexNum(c1), hexNum(c2), 0xffffff];
     fx.burst(oc.x, oc.y, { type: 'ring', n: 60, speed: 3.2, pal, flash: 60, trail: 0 });
     fx.burst(oc.x, oc.y, { type: 'peony', n: 30, speed: 2, pal, flash: 0, trail: 0 });
@@ -253,7 +251,6 @@ async function main() {
     gsap.set('.reveal', { opacity: 0, y: 20 });
     greet.classList.remove('hidden');
 
-    gsap.fromTo('.g-diya', { scale: 0, rotation: -40 }, { scale: 1, rotation: 0, duration: .8, ease: 'back.out(2.5)' });
     gsap.fromTo(top,
       { opacity: 0, scale: 2.6, y: -30, rotation: -12, filter: 'blur(10px)' },
       { opacity: 1, scale: 1, y: 0, rotation: 0, filter: 'blur(0px)', duration: .9, ease: 'back.out(2.2)', stagger: .055 });
@@ -273,9 +270,13 @@ async function main() {
       });
 
     gsap.to('.reveal', { opacity: 1, y: 0, duration: .7, ease: 'power2.out', stagger: .2, delay: 1.7 });
+    score = 0;
+    scoreN.textContent = '0';
+    scoreLabel.textContent = 'Touch a cracker!';
     later(2600, startGame);
     startShow('party');
     later(900, startGround);
+    later(3200, startTargets);
   }
 
   /* ---------------- Mini-game: light the diyas ---------------- */
@@ -344,10 +345,12 @@ async function main() {
   function reset() {
     stopShow();
     stopGroundShow();
+    stopTargets();
+    fx.clearTargets();
     fx.stopGround();
     playing = false;
     document.body.classList.remove('game');
-    gsap.killTweensOf('.ch, .reveal, .g-diya, .flame-wrap, .halo, #g-hint');
+    gsap.killTweensOf('.ch, .reveal, .flame-wrap, .halo, #g-hint');
     gsap.to('.flame-wrap', { scale: 1, duration: .5, ease: 'back.out(2)' });
     gsap.to('.halo', { opacity: 1, duration: .5 });
     diyaBtns.forEach((b) => b.classList.remove('out'));
@@ -381,11 +384,17 @@ async function main() {
   });
   diyaBtns.forEach((b) => b.addEventListener('click', () => lightDiya(b)));
   $('#again').addEventListener('click', reset);
+  // tap the sky for a firework; touch (or swipe across) a floating cracker to burst it
+  let pressing = false;
   greet.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return;
     audio.unlock();
-    fx.launchShell(e.clientX, Math.min(e.clientY, fx.height * .7), { n: 120, flash: 60 });
+    pressing = true;
+    if (!fx.hit(e.clientX, e.clientY)) fx.launchShell(e.clientX, Math.min(e.clientY, fx.height * .7), { n: 120, flash: 60 });
   });
+  greet.addEventListener('pointermove', (e) => { if (pressing || e.pointerType === 'mouse') fx.hit(e.clientX, e.clientY); });
+  addEventListener('pointerup', () => { pressing = false; });
+  addEventListener('pointercancel', () => { pressing = false; });
   $('#sound').addEventListener('click', (e) => {
     audio.unlock();
     const on = audio.toggle();

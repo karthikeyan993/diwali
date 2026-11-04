@@ -38,10 +38,10 @@ function glowTexture(size = 64) {
 /** A stand-in with the same API, used if WebGL can't start, so the greeting still works. */
 function noopEngine() {
   const noop = () => {};
-  return { spark: noop, burst: noop, launchShell: noop, setEmbers: noop, flowerPot: noop, chakra: noop, pop: noop, ladi: noop, stopGround: noop, width: innerWidth, height: innerHeight, scale: 1 };
+  return { spark: noop, burst: noop, launchShell: noop, setEmbers: noop, flowerPot: noop, chakra: noop, pop: noop, ladi: noop, stopGround: noop, spawnTarget: noop, hit: () => false, clearTargets: noop, targetCount: 0, width: innerWidth, height: innerHeight, scale: 1 };
 }
 
-export async function createFireworks(host, { quality = 1, onLight = null } = {}) {
+export async function createFireworks(host, { quality = 1, onLight = null, onTargetBurst = null } = {}) {
   const app = new Application();
   try {
     await app.init({
@@ -62,8 +62,9 @@ export async function createFireworks(host, { quality = 1, onLight = null } = {}
 
   const tex = glowTexture();
   const groundLayer = new Container(); // flower-pot bodies (normal blending)
+  const targetLayer = new Container(); // floating crackers you can burst
   const layer = new Container();
-  app.stage.addChild(groundLayer, layer);
+  app.stage.addChild(groundLayer, targetLayer, layer);
 
   const pool = [], parts = [], shells = [], flashes = [], emitters = [];
   const MAX = Math.round(3200 * quality) + 300;
@@ -225,6 +226,96 @@ export async function createFireworks(host, { quality = 1, onLight = null } = {}
     emitters.forEach((e) => { e.t = Math.max(e.t, e.dur - 30); });
   }
 
+  /* ---------- Floating crackers: touch one and it bursts ---------- */
+  const targets = [];
+  const FUSE = 0xd8c38f;
+  function crackerGraphic(kind) {
+    const g = new Graphics();
+    let tip;
+    if (kind === 'bomb') {            // round "atom bomb"
+      g.circle(0, 0, 14).fill(0x1d7a3e).stroke({ width: 1.6, color: 0xffd166 });
+      g.rect(-13.6, -3, 27.2, 6).fill(0xffd166);
+      g.circle(-5, -6, 3.4).fill({ color: 0xffffff, alpha: .3 });
+      g.moveTo(0, -14).quadraticCurveTo(7, -20, 3, -27).stroke({ width: 2, color: FUSE });
+      tip = [3, -27];
+    } else if (kind === 'lakshmi') {  // red paper "Lakshmi vedi"
+      g.roundRect(-11, -15, 22, 30, 3).fill(0xc62828).stroke({ width: 1.6, color: 0xffd166 });
+      g.circle(0, 0, 6.5).fill(0xffd166);
+      g.circle(0, 0, 3.6).fill(0xc62828);
+      g.rect(-11, -10, 22, 1.4).fill(0xffd166);
+      g.rect(-11, 8.6, 22, 1.4).fill(0xffd166);
+      g.moveTo(0, -15).quadraticCurveTo(-6, -21, -2, -27).stroke({ width: 2, color: FUSE });
+      tip = [-2, -27];
+    } else {                          // rocket
+      g.rect(-1, 9, 2, 20).fill(0x9c7a55);
+      g.rect(-4.5, -13, 9, 23).fill(0xe53935);
+      g.rect(-4.5, -6, 9, 3).fill(0xffffff);
+      g.rect(-4.5, 2, 9, 3).fill(0xffffff);
+      g.poly([-5.5, -13, 5.5, -13, 0, -24]).fill(0xffd166);
+      tip = [0, 10];
+    }
+    return { g, tip };
+  }
+
+  function spawnTarget() {
+    const kind = pick(['bomb', 'bomb', 'lakshmi', 'lakshmi', 'rocket']);
+    const { g, tip } = crackerGraphic(kind);
+    const sc = 1.15 * S();
+    g.scale.set(sc);
+    targetLayer.addChild(g);
+    targets.push({
+      g, tip, kind, sc,
+      x: rand(W() * .14, W() * .86), y: H() + 40,
+      vx: rand(-.35, .35), vy: -rand(.9, 1.45) * S(),
+      rot: kind === 'rocket' ? 0 : rand(-.4, .4), vr: kind === 'rocket' ? 0 : rand(-.012, .012),
+      ph: rand(0, 6),
+    });
+  }
+
+  function explodeTarget(i) {
+    const t = targets[i];
+    targets.splice(i, 1);
+    const pal = t.kind === 'bomb' ? [0x7dff6a, 0xffd166, 0xffffff] : t.kind === 'lakshmi' ? [0xff3b3b, 0xffd166, 0xfff3b0] : MULTI;
+    burst(t.x, t.y, { type: pick(['peony', 'double', 'ring', 'crossette', 'peony']), pal, n: 130, speed: 6, flash: 90, glitter: true });
+    audio.pop(true);
+    audio.boom(false);
+    t.g.destroy();
+    onTargetBurst?.(t.kind, t.x, t.y);
+  }
+
+  function hit(px, py) {
+    const r = 34 * S();
+    for (let i = targets.length - 1; i >= 0; i--) {
+      const t = targets[i];
+      if (Math.hypot(t.x - px, t.y - py) < r) { explodeTarget(i); return true; }
+    }
+    return false;
+  }
+
+  function clearTargets() {
+    targets.splice(0).forEach((t) => t.g.destroy());
+  }
+
+  function updateTargets(k) {
+    for (let i = targets.length - 1; i >= 0; i--) {
+      const t = targets[i];
+      t.ph += .03 * k;
+      t.x += (t.vx + Math.sin(t.ph) * .35) * k;
+      t.y += t.vy * k;
+      t.rot += t.vr * k;
+      t.g.position.set(t.x, t.y);
+      t.g.rotation = t.rot;
+      // fizzing fuse
+      const c = Math.cos(t.rot), s = Math.sin(t.rot);
+      const fx = t.x + (c * t.tip[0] - s * t.tip[1]) * t.sc, fy = t.y + (s * t.tip[0] + c * t.tip[1]) * t.sc;
+      for (let j = 0; j < 2; j++) {
+        spark(fx, fy, rand(-1.2, 1.2), rand(-1.2, t.kind === 'rocket' ? 2.5 : .8), pick([0xffffff, 0xfff3b0, 0xffd166, 0xff8c1a]),
+          { decay: rand(.05, .09), size: rand(1, 1.8), g: .04, f: .94, tw: true });
+      }
+      if (t.y < -60) { t.g.destroy(); targets.splice(i, 1); }
+    }
+  }
+
   function updateEmitters(k) {
     const gy = groundY();
     for (let i = emitters.length - 1; i >= 0; i--) {
@@ -283,6 +374,7 @@ export async function createFireworks(host, { quality = 1, onLight = null } = {}
     }
 
     updateEmitters(k);
+    updateTargets(k);
 
     for (let i = flashes.length - 1; i >= 0; i--) {
       const f = flashes[i];
@@ -349,7 +441,8 @@ export async function createFireworks(host, { quality = 1, onLight = null } = {}
   });
 
   return {
-    spark, burst, launchShell, flowerPot, chakra, pop, ladi, stopGround,
+    spark, burst, launchShell, flowerPot, chakra, pop, ladi, stopGround, spawnTarget, hit, clearTargets,
+    get targetCount() { return targets.length; },
     setEmbers(v) { embers = v; },
     get width() { return W(); },
     get height() { return H(); },

@@ -9,23 +9,17 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪔</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;800&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;800&family=Outfit:wght@400;500;600&family=Yatra+One&display=swap" rel="stylesheet">
 </head>
 <body>
 
-  <!-- Sky decoration (stars + marigold garland) -->
+  <!-- Sky decoration: light beams, bokeh, stars, Chennai skyline, mango-leaf toran -->
   <div id="world" aria-hidden="true">
     <div class="beams"><i class="beam b1"></i><i class="beam b2"></i><i class="beam b3"></i></div>
     <div id="bokeh"></div>
     <div id="stars"></div>
     <div id="skyline"></div>
-    <svg id="garland" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <radialGradient id="mg1" cx="35%" cy="35%" r="70%"><stop offset="0" stop-color="#ffe08a"/><stop offset=".6" stop-color="#ffb703"/><stop offset="1" stop-color="#d98200"/></radialGradient>
-        <radialGradient id="mg2" cx="35%" cy="35%" r="70%"><stop offset="0" stop-color="#ffc07a"/><stop offset=".6" stop-color="#fb8500"/><stop offset="1" stop-color="#c25a00"/></radialGradient>
-      </defs>
-      <g id="garland-g"></g>
-    </svg>
+    <div id="toran"></div>
   </div>
 
   <!-- WebGL fireworks (PixiJS) -->
@@ -39,37 +33,36 @@
       <h1 class="title">Who are you?</h1>
       <p class="hint">Pick your name to light up the sky</p>
       <div class="players">
-        <button class="player" data-name="Dishanth" style="--n:0;--c1:#3be8ff;--c2:#7b5cff">
-          <span class="p-orb" aria-hidden="true"><span class="p-ring"></span><b>D</b></span>
-          <span class="p-text"><span class="p-name">Dishanth</span><span class="p-sub" aria-hidden="true">Player 1 · Tap to launch</span></span>
-          <span class="p-go" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <button class="player" data-name="Dishanth" style="--n:0;--silk:#0f7b83;--silk2:#073b47;--c1:#ffd166;--c2:#2ee6d6">
+          <span class="p-diya" aria-hidden="true"><i class="p-flame"></i><i class="p-bowl"></i></span>
+          <span class="p-text"><span class="p-name">Dishanth</span><span class="p-sub" aria-hidden="true">Tap to light the sky</span></span>
+          <span class="p-go" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </button>
-        <button class="player" data-name="Pravya" style="--n:1;--c1:#ffcf6b;--c2:#ff4f9a">
-          <span class="p-orb" aria-hidden="true"><span class="p-ring"></span><b>P</b></span>
-          <span class="p-text"><span class="p-name">Pravya</span><span class="p-sub" aria-hidden="true">Player 2 · Tap to launch</span></span>
-          <span class="p-go" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <button class="player" data-name="Pravya" style="--n:1;--silk:#b0175a;--silk2:#5a0830;--c1:#ffd166;--c2:#ff5fa8">
+          <span class="p-diya" aria-hidden="true"><i class="p-flame"></i><i class="p-bowl"></i></span>
+          <span class="p-text"><span class="p-name">Pravya</span><span class="p-sub" aria-hidden="true">Tap to light the sky</span></span>
+          <span class="p-go" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </button>
       </div>
     </section>
 
     <section id="greet" class="screen hidden" aria-live="polite">
-      <div class="g-diya" aria-hidden="true">🪔</div>
+      <div class="score reveal" id="score" aria-live="polite"><span>🧨</span> <em id="score-label">Touch a cracker!</em> <b id="score-n">0</b></div>
       <p class="g-top" id="g-top"></p>
       <h2 class="g-name" id="g-name"></h2>
       <p class="g-msg reveal">May your Diwali sparkle with light, laughter &amp; lots of sweets!</p>
       <p class="g-hint reveal" id="g-hint">&nbsp;</p>
+      <!-- Diya mini-game -->
+      <div class="diyas reveal" id="diyas">
+        <button class="diya-btn" aria-label="Light diya 1"><span class="halo"></span><span class="flame-wrap"><i class="flame" style="--d:0s"></i></span><span class="diya"></span></button>
+        <button class="diya-btn" aria-label="Light diya 2"><span class="halo"></span><span class="flame-wrap"><i class="flame" style="--d:-.4s"></i></span><span class="diya"></span></button>
+        <button class="diya-btn" aria-label="Light diya 3"><span class="halo"></span><span class="flame-wrap"><i class="flame" style="--d:-.9s"></i></span><span class="diya"></span></button>
+        <button class="diya-btn" aria-label="Light diya 4"><span class="halo"></span><span class="flame-wrap"><i class="flame" style="--d:-.2s"></i></span><span class="diya"></span></button>
+        <button class="diya-btn" aria-label="Light diya 5"><span class="halo"></span><span class="flame-wrap"><i class="flame" style="--d:-.7s"></i></span><span class="diya"></span></button>
+      </div>
       <button class="again reveal" id="again">↺ Choose again</button>
     </section>
   </main>
-
-  <!-- Diyas: decoration on the first screen, a mini-game after the greeting -->
-  <div class="diyas" id="diyas">
-    <button class="diya-btn" aria-label="Light diya 1"><span class="halo"></span><span class="flame-wrap"><i class="flame" style="--d:0s"></i></span><span class="diya"></span></button>
-    <button class="diya-btn" aria-label="Light diya 2"><span class="halo"></span><span class="flame-wrap"><i class="flame" style="--d:-.4s"></i></span><span class="diya"></span></button>
-    <button class="diya-btn" aria-label="Light diya 3"><span class="halo"></span><span class="flame-wrap"><i class="flame" style="--d:-.9s"></i></span><span class="diya"></span></button>
-    <button class="diya-btn" aria-label="Light diya 4"><span class="halo"></span><span class="flame-wrap"><i class="flame" style="--d:-.2s"></i></span><span class="diya"></span></button>
-    <button class="diya-btn" aria-label="Light diya 5"><span class="halo"></span><span class="flame-wrap"><i class="flame" style="--d:-.7s"></i></span><span class="diya"></span></button>
-  </div>
 
   <script type="module" src="/src/main.js"></script>
 </body>
