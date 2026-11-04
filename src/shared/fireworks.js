@@ -80,6 +80,7 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
   const W = () => app.screen.width;
   const H = () => app.screen.height;
   const S = () => Math.max(.75, Math.min(1.5, Math.min(W(), H()) / 420));
+  const panOf = (x) => Math.max(-1, Math.min(1, (x / W()) * 2 - 1)) * .8; // where on screen -> left/right
 
   function sprite() {
     let s = pool.pop();
@@ -180,7 +181,7 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
     const vy = -Math.sqrt(2 * g * Math.max(60, sy - ty));
     const frames = -vy / g;
     shells.push({ x: sx, y: sy, vx: (tx - sx) / frames, vy, g, opts, sp: sprite() });
-    if (!opts.silent) audio.whoosh(rand(.7, 1), .05);
+    if (!opts.silent) audio.whoosh(rand(.7, 1), .08, panOf(sx));
   }
 
   /* ---------- Ground crackers ---------- */
@@ -204,13 +205,13 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
     body.alpha = 0;
     groundLayer.addChild(body);
     emitters.push({ type: 'pot', x, t: 0, dur: dur * 60, body, pal: pick(POT_COLORS), g: glow(0xffe39a) });
-    audio.hiss(dur, .05);
+    audio.hiss(dur, .05, false, panOf(x));
   }
 
   /** Chakra: a ground spinner that whirls sparks and wanders a little */
   function chakra(x, dur = rand(4, 5.5)) {
     emitters.push({ type: 'chakra', x, vx: rand(-.5, .5), t: 0, dur: dur * 60, a: 0, g: glow(0xfff2c0) });
-    audio.hiss(dur, .06, true);
+    audio.hiss(dur, .06, true, panOf(x));
   }
 
   /** A tiny cracker going pop */
@@ -221,7 +222,7 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
       spark(x, y, Math.cos(a) * s, Math.sin(a) * s, pick([0xffffff, 0xfff3b0, 0xffd166, 0xff8c1a]),
         { decay: rand(.04, .07), size: rand(1.1, 2), g: .09, f: .94 });
     }
-    audio.pop(loud);
+    audio.pop(loud, panOf(x));
   }
 
   /** Ladi / saram: a string of crackers popping in quick succession across the ground */
@@ -235,7 +236,7 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
   /** Bridge waterfall: a curtain of golden sparks pouring from a deck down to the water */
   function waterfall(x0, x1, y, floor, dur = 7) {
     emitters.push({ type: 'falls', x0, x1, y, floor, t: 0, dur: dur * 60 });
-    audio.hiss(dur, .06);
+    audio.hiss(dur, .06, false, panOf((x0 + x1) / 2));
   }
 
   function stopGround() {
@@ -293,8 +294,8 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
     targets.splice(i, 1);
     const pal = t.kind === 'bomb' ? [0x7dff6a, 0xffd166, 0xffffff] : t.kind === 'lakshmi' ? [0xff3b3b, 0xffd166, 0xfff3b0] : MULTI;
     burst(t.x, t.y, { type: pick(['peony', 'double', 'ring', 'crossette', 'peony']), pal, n: 130, speed: 6, flash: 90, glitter: true });
-    audio.pop(true);
-    audio.boom(false);
+    audio.pop(true, panOf(t.x));
+    audio.boom(false, panOf(t.x));
     t.g.destroy();
     onTargetBurst?.(t.kind, t.x, t.y);
   }
@@ -452,7 +453,7 @@ export async function createFireworks(host, { quality: baseQuality = 1, onLight 
         release(s.sp);
         shells.splice(i, 1);
         burst(s.x, s.y, s.opts);
-        if (!s.opts.silent) audio.boom(false);
+        if (!s.opts.silent) audio.boom(false, panOf(s.x));
       }
     }
 

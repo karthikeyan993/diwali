@@ -116,7 +116,7 @@ export function createFuse(host) {
   async function light(fx, duration = 2) {
     btn.disabled = true;
     btn.classList.add('burning');
-    audio.hiss(duration + .2, .09);
+    audio.fuse(duration + .15);
     const prog = { p: 0 };
     await gsap.to(prog, {
       p: 1, duration, ease: 'none',
@@ -157,13 +157,14 @@ export function createFuse(host) {
     };
 
     fly.classList.add('lit');
+    const rumble = reducedMotion ? .2 : .45;
+    audio.launch(rumble, 1.3);
     const tl = gsap.timeline();
     // ignition: the rocket shudders in the bottle, spitting sparks
     tl.to(fly, {
-      duration: reducedMotion ? .2 : .45, ease: 'none', y: -3,
+      duration: rumble, ease: 'none', y: -3,
       onUpdate: () => { gsap.set(fly, { x: rand(-1.6, 1.6) }); emit(3, 2); },
     })
-      .add(() => audio.whoosh(1.3, .22))
       // lift-off: it accelerates away, leaning slightly as it drifts towards the middle
       .to(fly, {
         duration: 1.25, ease: 'power2.in',
