@@ -58,6 +58,23 @@ const ROCKET = `
   <circle cx="150" cy="34.4" r="1.9" fill="#fff6c8"/>
   <path d="M157.6 70h5v2.6h-5z M157.6 94h5v2.6h-5z" fill="#ffe08a"/>`;
 
+// a chunky cartoon rocket for game-like pages: bold outlines, cel shading, a porthole, big fins
+const INK = 'stroke="#2a0f1a" stroke-width="2" stroke-linejoin="round"';
+const CARTOON = `
+  <rect x="159.6" y="66" width="2.4" height="128" rx="1.2" fill="#d9b47a" stroke="#5a3e1e" stroke-width=".8"/>
+  <path d="M140 86L129 101Q127.5 107 134 107L141 102Z" fill="#7b5cff" ${INK}/>
+  <path d="M160 86L171 101Q172.5 107 166 107L159 102Z" fill="#6a48f0" ${INK}/>
+  <path d="M143.5 103.5H156.5L154.5 111H145.5Z" fill="#8a93a8" ${INK}/>
+  <rect x="139" y="57" width="22" height="48" rx="7" fill="#ff3b4e" ${INK}/>
+  <path d="M141.5 62Q141 80 142 100" stroke="#ff9aa3" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M157.8 61Q159 80 157.8 101" stroke="#c41f36" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M139.4 89H160.6V95H139.4Z" fill="#ffd166" stroke="#2a0f1a" stroke-width="1.4"/>
+  <circle cx="150" cy="74" r="6.2" fill="#5ce1ff" ${INK}/>
+  <path d="M146.6 72.4Q148 69.6 151 69.8" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+  <path d="M139.2 59Q140 41 150 29Q160 41 160.8 59Z" fill="#ffd166" ${INK}/>
+  <path d="M143.6 55Q144 43 149.4 34" stroke="#fff3b0" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+  <circle cx="150" cy="29.6" r="2.2" fill="#ff3b4e" ${INK} stroke-width="1.4"/>`;
+
 const BOTTLE = `<g transform="translate(11 0)">
   <path d="M133 193Q133 198 138 198H162Q167 198 167 193V160Q167 147 158 139V124H143V139Q133 147 133 160Z" fill="url(#bottleGlass)"/>
   <path d="M141.5 118H158.5V124H141.5Z" fill="#2f8f60" opacity=".9"/>
@@ -68,14 +85,15 @@ const BOTTLE = `<g transform="translate(11 0)">
   <path d="M162 164V184" stroke="#e8fff2" stroke-opacity=".18" stroke-width="1.4" stroke-linecap="round"/>
   <path d="M135 195H165" stroke="#062a1a" stroke-opacity=".6" stroke-width="2"/></g>`;
 
-export function createFuse(host) {
+export function createFuse(host, { art = 'classic' } = {}) {
+  const ART = art === 'cartoon' ? CARTOON : ROCKET;
   const btn = document.createElement('button');
   btn.className = 'fuse';
   btn.setAttribute('aria-label', 'Light the fuse');
   btn.innerHTML = `
   <svg viewBox="0 0 220 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <defs>${DEFS}</defs>
-    <g class="rk">${ROCKET}</g>
+    <g class="rk">${ART}</g>
     ${BOTTLE}
     <path class="burnt" d="${FUSE_D}" fill="none" stroke="#2a1c12" stroke-width="2.2" stroke-linecap="round"/>
     <path class="thread" d="${FUSE_D}" fill="none" stroke="#e9d5a3" stroke-width="2.6" stroke-linecap="round"/>
@@ -87,9 +105,9 @@ export function createFuse(host) {
 
   // the rocket that actually flies: an identical drawing in its own layer, so lift-off is a GPU transform
   const fly = document.createElement('div');
-  fly.className = 'rk-fly';
+  fly.className = `rk-fly ${art}`;
   fly.setAttribute('aria-hidden', 'true');
-  fly.innerHTML = `<svg viewBox="0 0 220 200" xmlns="http://www.w3.org/2000/svg"><defs>${DEFS.replace(/id="/g, 'id="f-')}</defs>${ROCKET.replace(/url\(#/g, 'url(#f-')}</svg><i class="rk-flame"></i>`;
+  fly.innerHTML = `<svg viewBox="0 0 220 200" xmlns="http://www.w3.org/2000/svg"><defs>${DEFS.replace(/id="/g, 'id="f-')}</defs>${ART.replace(/url\(#/g, 'url(#f-')}</svg><i class="rk-flame"></i>`;
   host.appendChild(fly);
 
   const svg = btn.querySelector('svg');
@@ -108,7 +126,7 @@ export function createFuse(host) {
     ember.setAttribute('cx', 22); ember.setAttribute('cy', 192);
     rk.style.opacity = '1';
     fly.classList.remove('on', 'lit');
-    gsap.set(fly, { x: 0, y: 0, rotation: 0, scale: 1 });
+    gsap.set(fly, { x: 0, y: 0, rotation: 0, scale: 1, scaleX: 1, scaleY: 1 });
     btn.disabled = false;
   }
 
@@ -136,7 +154,7 @@ export function createFuse(host) {
   }
 
   /** Lift the rocket out of the bottle and fly it to `target`. Resolves with the burst point (its nose). */
-  async function launch(fx, target, { reducedMotion = false, climb: climbFor = 1.8, endScale = .8 } = {}) {
+  async function launch(fx, target, { reducedMotion = false, climb: climbFor = 1.8, endScale = .8, stunt = false } = {}) {
     // put the flying copy exactly over the drawn rocket, then hide the drawn one: no visible swap
     const r = btn.getBoundingClientRect();
     Object.assign(fly.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
@@ -160,6 +178,11 @@ export function createFuse(host) {
     const rumble = reducedMotion ? .2 : .45;
     const climb = reducedMotion ? 1.2 : climbFor;
     audio.launch(rumble, climb);
+    if (stunt && !reducedMotion) {
+      await stuntFlight(fx, dx, dy, rumble, climb, endScale, k);
+      fly.classList.remove('on', 'lit');
+      return { x: target.x, y: target.y };
+    }
     const tl = gsap.timeline();
     // ignition: the rocket shudders in the bottle, spitting sparks
     tl.to(fly, {
@@ -175,6 +198,58 @@ export function createFuse(host) {
     await tl;
     fly.classList.remove('on', 'lit');
     return { x: target.x, y: target.y };
+  }
+
+  /** Cartoon stunt flight: squash before lift-off, a weaving climb that banks into its turns,
+   *  two barrel rolls on the way up, and a thick flame trail with glitter that hangs in the air. */
+  async function stuntFlight(fx, dx, dy, rumble, climb, endScale, k) {
+    const o0 = toScreen(150, 80);                 // the transform origin on screen
+    const tailLen = 31 * k;                       // origin -> nozzle, in px at scale 1
+    const W = fx.width, weave = Math.min(W * .26, 110) * (Math.random() < .5 ? -1 : 1);
+    const GLITTER = [0xff4fa3, 0x5ce1ff, 0xffd166, 0x7dff6a, 0xffffff, 0x9b5cff];
+    const smooth = (p) => p * p * (3 - 2 * p);
+    const xAt = (p) => dx * p + weave * Math.sin(p * Math.PI * 3) * Math.sin(p * Math.PI);
+    const yAt = (p) => dy * (p < .5 ? 2 * p * p * (1.1 - .2 * p) : smooth(p));
+    // each roll spins the rocket about its long axis: its width goes through zero and comes back mirrored
+    const rollAt = (p) => {
+      for (const [a, b] of [[.22, .4], [.58, .76]]) if (p > a && p < b) return Math.cos(((p - a) / (b - a)) * Math.PI * 2);
+      return 1;
+    };
+    const trail = (x, y, rot, sc, boost) => {
+      const r = rot * Math.PI / 180, bx = -Math.sin(r), by = Math.cos(r); // unit vector out of the nozzle
+      const nx = o0.x + x + bx * tailLen * sc, ny = o0.y + y + by * tailLen * sc;
+      for (let i = 0; i < 5 + boost; i++) {
+        const sp = rand(2, 5);
+        fx.spark(nx + rand(-1.5, 1.5), ny, bx * sp + rand(-.8, .8), by * sp + rand(-.8, .8), pick([...FLAME, 0xffffff]),
+          { decay: rand(.03, .055), g: .03, size: rand(1.6, 3.2), f: .95 });
+      }
+      for (let i = 0; i < 2; i++) {
+        fx.spark(nx + rand(-3, 3), ny + rand(-3, 3), rand(-.5, .5), rand(-.2, .6), pick(GLITTER),
+          { decay: rand(.01, .018), g: .015, size: rand(1.2, 2.2), f: .97, tw: true });
+      }
+    };
+
+    // ignition: it squashes down into the bottle, shaking and spitting sparks...
+    await gsap.to(fly, {
+      duration: rumble, ease: 'power1.in', y: 2, scaleY: .82, scaleX: 1.14,
+      onUpdate: () => { gsap.set(fly, { x: rand(-1.8, 1.8) }); trail(+gsap.getProperty(fly, 'x'), 2, 0, 1, 0); },
+    });
+    // ...then stretches as it springs out and flies
+    const prog = { p: 0 };
+    let px = 0, py = 0, rot = 0;
+    await gsap.to(prog, {
+      p: 1, duration: climb, ease: 'none',
+      onUpdate() {
+        const p = prog.p, x = xAt(p), y = yAt(p);
+        const vx = x - px, vy = y - py;
+        if (vx * vx + vy * vy > .5) rot = gsap.utils.clamp(-70, 70, Math.atan2(vx, -vy) * 180 / Math.PI);
+        px = x; py = y;
+        const sc = 1 + (endScale - 1) * Math.pow(p, .8);
+        const stretch = 1 + .22 * Math.max(0, 1 - p * 6); // stretched just after lift-off
+        gsap.set(fly, { x, y, rotation: rot, scaleX: sc * rollAt(p) / Math.sqrt(stretch), scaleY: sc * stretch });
+        trail(x, y, rot, sc, p < .15 ? 4 : 0);
+      },
+    });
   }
 
   return { el: btn, light, launch, reset };

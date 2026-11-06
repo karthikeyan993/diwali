@@ -150,7 +150,7 @@ async function main() {
 
   /* ---------------- In the dark: pick a name, then light the fuse ---------------- */
   const title = $('#title');
-  const fuse = createFuse(document.body);
+  const fuse = createFuse(document.body, { art: 'cartoon' });
   fuse.el.classList.add('away');
   let busy = false, chosenName = null;
 
@@ -185,7 +185,7 @@ async function main() {
     chooser.classList.add('hidden');
     const W = fx.width, H = fx.height;
     // a long climb: the rocket shrinks into the distance as it rises
-    const { x, y } = await fuse.launch(fx, { x: W / 2, y: Math.max(H * .2, 90) }, { reducedMotion: RM, climb: 2.6, endScale: .32 });
+    const { x, y } = await fuse.launch(fx, { x: W / 2, y: Math.max(H * .2, 90) }, { reducedMotion: RM, climb: 4.2, endScale: .42, stunt: true });
     bigBurst(fx, x, y, later);
     shake();
     document.body.classList.add('lit');
