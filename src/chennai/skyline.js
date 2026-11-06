@@ -1,6 +1,7 @@
-// Chennai skyline as a subtle monochrome silhouette with a warm rim light.
-// viewBox is 1200 x 320 (ground at y = 320); it is sliced from the bottom-centre,
-// so on phones the middle landmarks (gopuram, Central, lighthouse) stay in view.
+// Chennai by night from the Marina: a subtle monochrome skyline with a warm rim light, the sand of
+// Marina beach with the lighthouse and catamarans, then the sea with reflections.
+// viewBox is 1200 x VH (city ground at y = 320, sea from WY); it is sliced from the bottom-centre,
+// so on phones the middle landmarks (Central, gopuram, lighthouse) stay in view.
 
 const G = 320; // ground
 const f = (n) => +n.toFixed(1);
@@ -82,11 +83,26 @@ function central(cx) {
   return { d, clock: [cx, 192] };
 }
 
-/** Marina lighthouse */
-function lighthouse(cx) {
-  const d = [P([cx - 14, G], [cx - 8, 142], [cx + 8, 142], [cx + 14, G]), R(cx - 12, 134, 24, 8), R(cx - 7, 118, 14, 16), P([cx - 9, 118], [cx, 106], [cx + 9, 118])];
-  for (let y = 160; y < 300; y += 26) win(cx - 1.5, y, 3, 5, .7);
-  return { d, lamp: [cx, 126] };
+/** Marina lighthouse: a tall tapering tower standing on the beach, with a viewing gallery and a lit lantern */
+function lighthouse(cx, base) {
+  const d = [
+    R(cx - 20, base - 8, 40, 8), R(cx - 16, base - 14, 32, 6),           // stepped plinth on the sand
+    P([cx - 12, base - 14], [cx - 7, 96], [cx + 7, 96], [cx + 12, base - 14]), // shaft
+    R(cx - 13, 90, 26, 6), R(cx - 11, 82, 22, 2),                       // viewing gallery + rail
+    R(cx - 6, 66, 12, 16),                                             // lantern room
+    `M${cx - 8} 66Q${cx} 54 ${cx + 8} 66Z`, R(cx - .6, 46, 1.2, 10),      // dome + vane
+  ];
+  for (let x = cx - 11; x <= cx + 11; x += 3.6) d.push(R(x - .4, 84, .8, 6)); // gallery posts
+  for (let y = 120; y < base - 30; y += 24) win(cx - 1.2, y, 2.4, 6, .9);    // slit windows up the stair
+  // fluting down the shaft
+  const flutes = `M${cx - 3.5} 98L${cx - 6} ${base - 14}M${cx + 3.5} 98L${cx + 6} ${base - 14}`;
+  return { d, flutes, lamp: [cx, 74] };
+}
+
+/** Kattumaram catamarans pulled up on the sand */
+function catamaran(x, y, s = 1) {
+  return `M${f(x - 16 * s)} ${f(y - 2 * s)}Q${f(x)} ${f(y + 3 * s)} ${f(x + 18 * s)} ${f(y - 5 * s)}L${f(x + 15 * s)} ${f(y)}Q${f(x)} ${f(y + 4 * s)} ${f(x - 14 * s)} ${f(y + 1 * s)}Z`
+    + `M${f(x - 2 * s)} ${f(y - 1 * s)}L${f(x + 1 * s)} ${f(y - 15 * s)}L${f(x + 2.2 * s)} ${f(y - 15 * s)}L${f(x + 1 * s)} ${f(y - 1 * s)}Z`;
 }
 
 /** LIC building */
@@ -140,15 +156,16 @@ function palm(x, h, lean) {
   return d;
 }
 
-/* ---------- Napier Bridge: a row of lit bow arches over the Cooum, near the Marina ---------- */
-export const DECK = { x0: 644, x1: 1136, y: 309 };
+/* ---------- Napier Bridge: lit bow arches over the Cooum where it meets the sea, at the end of the Marina ---------- */
+const NB0 = 1010, NBN = 2;
+export const DECK = { x0: NB0 + 4, x1: NB0 + NBN * 100, y: 309 };
 function napier() {
   let arches = '', hangers = '';
-  const solid = [R(640, 304, 500, 5)];
+  const solid = [R(NB0, 304, NBN * 100 + 4, 5)];
   const lights = [];
   const COLS = ['#ffd166', '#ff5fa2', '#5ce1ff', '#7dff6a'];
-  for (let i = 0; i < 5; i++) {
-    const x0 = 640 + i * 100;
+  for (let i = 0; i < NBN; i++) {
+    const x0 = NB0 + i * 100;
     arches += `M${x0 + 4} 304Q${x0 + 50} 258 ${x0 + 96} 304`;
     solid.push(R(x0 - 1, 309, 4, G - 309));
     for (let k = 1; k < 8; k++) {
@@ -161,8 +178,8 @@ function napier() {
       lights.push([(1 - t) ** 2 * (x0 + 4) + 2 * (1 - t) * t * (x0 + 50) + t * t * (x0 + 96), (1 - t) ** 2 * 304 + 2 * (1 - t) * t * 258 + t * t * 304, COLS[(i + k) % 4]]);
     }
   }
-  solid.push(R(1136, 309, 4, G - 309));
-  return { solid, arches, hangers, lights, rail: 'M640 301H1140' };
+  solid.push(R(NB0 + NBN * 100, 309, 4, G - 309));
+  return { solid, arches, hangers, lights, rail: `M${NB0} 301H${NB0 + NBN * 100 + 4}` };
 }
 
 /* ---------- a lit country boat drifting along the river (its own layer, slides on the GPU) ---------- */
@@ -175,24 +192,43 @@ function boat(cx, y) {
     <g transform="translate(0 ${2 * y + 6}) scale(1 -1)" opacity=".3"><circle cx="${cx - 14}" cy="${y - 8}" r="2.2" fill="#ffcf6b"/></g>`;
 }
 
-export const VH = 420, WY = G; // the river starts where the city meets the ground
+export const VH = 452, WY = 354; // Marina sand from the city's ground (G) down to the sea (WY)
+const SAND_END = 1000;            // the beach ends at the Cooum mouth
 
 export function buildSkyline(el) {
   windows.length = 0; lights.length = 0; door.length = 0;
   seed = 7;
   const back = fillers();
-  const g = gopuram(600);
-  const c = central(818);
-  const l = lighthouse(985);
-  const s = santhome(1110);
+  const CC = 430, GC = 625, LC = 805;
+  const g = gopuram(GC);
+  const c = central(CC);
+  const l = lighthouse(LC, WY - 6);
+  const s = santhome(1000);
   const nb = napier();
-  const front = [...ripon(150), ...lic(380), ...g, ...c.d, ...l.d, ...s.d];
+  const front = [...ripon(90), ...lic(255), ...g, ...c.d, ...s.d, ...l.d];
   const gopD = g.join('');
-  const palms = [palm(250, 92, 10), palm(352, 78, -8), palm(874, 74, 9), palm(1168, 96, -12)].join('');
+  const palms = [palm(160, 88, 10), palm(318, 78, -8), palm(728, 70, 9), palm(905, 90, -10)].join('');
 
   // Chennai Central detail: string courses and pilasters across the red-brick front
-  let centralDetail = 'M723 262H913M723 282H913';
-  for (let x = 729; x < 913; x += 12) centralDetail += `M${x} 256V320`;
+  let centralDetail = `M${CC - 95} 262H${CC + 95}M${CC - 95} 282H${CC + 95}`;
+  for (let x = CC - 89; x < CC + 95; x += 12) centralDetail += `M${x} 256V320`;
+
+  // Marina beach: the sand's front edge laps in gentle curves, and ends at the river mouth
+  let sand = `M-10 ${G}H${SAND_END}`;
+  sand += `C${SAND_END + 6} ${G + 8} ${SAND_END - 14} ${WY - 6} ${SAND_END - 4} ${WY}`;
+  for (let x = SAND_END - 4, k = 0; x > -10; x -= 40, k++) sand += `Q${f(x - 20)} ${f(WY + (k % 2 ? 2 : -1.2))} ${f(x - 40)} ${WY}`;
+  sand += 'Z';
+  // foam lines where the waves reach the sand, and a second, fainter line further out
+  let foam = '', foam2 = '';
+  for (let x = -10; x < SAND_END; x += 26 + rnd() * 30) {
+    const len = 14 + rnd() * 34;
+    foam += `M${f(x)} ${f(WY + 1.2)}q${f(len / 2)} ${f(1.4 + rnd())} ${f(len)} 0`;
+    if (rnd() < .6) foam2 += `M${f(x + 10)} ${f(WY + 7 + rnd() * 3)}q${f(len / 2)} ${f(1.2)} ${f(len * 1.2)} 0`;
+  }
+  // beach road lamps along the Marina, and catamarans on the sand
+  const lamps = [360, 515, 715, 880, 960].map((x) => [x, G - 22]);
+  const lampPoles = lamps.map(([x, y]) => R(x - .5, y, 1, G + 2 - y)).join('');
+  const boats = catamaran(372, G + 17, 1.3) + catamaran(490, G + 24, 1.5) + catamaran(915, G + 18, 1.2) + catamaran(712, G + 26, 1.3);
 
   const dot = ([x, y]) => `<circle cx="${f(x)}" cy="${f(y)}" r="1.15"/>`;
   const lightsA = lights.filter((_, i) => i % 2 === 0).map(dot).join('');
@@ -208,7 +244,7 @@ export function buildSkyline(el) {
   const twinkleB = twinkle.filter((_, i) => i % 2 === 1).map(rect).join('');
 
   // the river: reflections of the lights, squashed and fading with depth, plus ripples
-  const mirror = `translate(0 ${f(WY * 1.8)}) scale(1 -0.8)`;
+  const mirror = `translate(0 ${f(WY + G * .8)}) scale(1 -0.8)`; // city base (G) lands on the waterline (WY)
   const streaks = windows.filter((w) => w[4] > .5).map(([x, y, w, h]) => `<rect x="${f(x)}" y="${f(y - h * 2)}" width="${w}" height="${f(h * 3)}"/>`).join('');
   let ripples = '';
   for (let i = 0; i < 46; i++) {
@@ -236,7 +272,10 @@ export function buildSkyline(el) {
     <linearGradient id="doorGrad" gradientUnits="userSpaceOnUse" x1="0" y1="266" x2="0" y2="${G}">
       <stop offset="0" stop-color="#ffd27a"/><stop offset=".6" stop-color="#ff9a3c"/><stop offset="1" stop-color="#c2521c"/>
     </linearGradient>
-    <linearGradient id="river" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1046"/><stop offset="1" stop-color="#04020c"/></linearGradient>
+    <linearGradient id="river" gradientUnits="userSpaceOnUse" x1="0" y1="${WY}" x2="0" y2="${VH}"><stop offset="0" stop-color="#1a1046"/><stop offset="1" stop-color="#04020c"/></linearGradient>
+    <linearGradient id="sand" gradientUnits="userSpaceOnUse" x1="0" y1="${G}" x2="0" y2="${WY}"><stop offset="0" stop-color="#2a1a3c"/><stop offset="1" stop-color="#4d3350"/></linearGradient>
+    <radialGradient id="sandGlow"><stop offset="0" stop-color="#ffb35c" stop-opacity=".42"/><stop offset="1" stop-color="#ffb35c" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lampGlow"><stop offset="0" stop-color="#fff1c2" stop-opacity=".7"/><stop offset="1" stop-color="#fff1c2" stop-opacity="0"/></radialGradient>
     <linearGradient id="gSaffron" gradientUnits="userSpaceOnUse" x1="0" y1="80" x2="0" y2="${G}">
       <stop offset="0" stop-color="#ffe27a" stop-opacity=".9"/><stop offset=".5" stop-color="#ff8c1a" stop-opacity=".75"/><stop offset="1" stop-color="#ff3d6e" stop-opacity=".45"/>
     </linearGradient>
@@ -254,41 +293,63 @@ export function buildSkyline(el) {
     <path id="cityFront" d="${front.join('')}"/>
   </defs>
   <path d="${back.join('')}" fill="#120b30" opacity=".85"/>
+  <rect x="0" y="${G}" width="1200" height="${VH - G}" fill="url(#river)"/>
+  <path d="${sand}" fill="url(#sand)"/>
+  <ellipse cx="${GC}" cy="${G + 10}" rx="80" ry="18" fill="url(#sandGlow)"/>
+  ${lamps.map(([x]) => `<ellipse cx="${x}" cy="${G + 10}" rx="44" ry="12" fill="url(#sandGlow)" opacity=".7"/>`).join('')}
+  <path d="${lampPoles}" fill="#140a2c"/>
+  <path d="${boats}" fill="#0c0620"/>
   <use href="#cityFront" fill="url(#cityFill)" stroke="url(#cityRim)" stroke-width="1.1"/>
   <path d="${centralDetail}" stroke="#3a2a70" stroke-width=".6" opacity=".7"/>
+  <path d="${l.flutes}" stroke="#3a2c80" stroke-width=".8"/>
   <g fill="#ffcf6b">${steadyWin}</g>
   <path d="${door.join('')}" fill="url(#doorGrad)" filter="url(#cityGlow)" opacity=".9"/>
   <g filter="url(#cityGlow)">
     <circle cx="${c.clock[0]}" cy="${c.clock[1]}" r="9" fill="#ffe9b0" opacity=".9"/>
     <circle cx="${s.rose[0]}" cy="${s.rose[1]}" r="5" fill="#ffb3d9" opacity=".7"/>
-    <rect x="${l.lamp[0] - 6}" y="${l.lamp[1] - 7}" width="12" height="13" fill="#fff1c2"/>
+    <rect x="${l.lamp[0] - 5}" y="${l.lamp[1] - 7}" width="10" height="14" fill="#fff6d8"/>
+    <circle cx="${l.lamp[0]}" cy="${l.lamp[1]}" r="14" fill="url(#lampGlow)"/>
+    <rect x="${LC - 12}" y="91" width="24" height="2" fill="#ffd27a" opacity=".85"/>
+    ${lamps.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2" fill="#ffe2a8"/>`).join('')}
   </g>
   <path d="${palms}" fill="none" stroke="#0a0618" stroke-width="2.6" stroke-linecap="round"/>
   <path d="${nb.solid.join('')}" fill="#1c1446"/>
   <path d="${nb.hangers}" stroke="#2c2266" stroke-width=".8"/>
   <path d="${nb.arches}${nb.rail}" fill="none" stroke="#3a2c80" stroke-width="2.4" stroke-linecap="round"/>
-  <rect x="0" y="${WY}" width="1200" height="${VH - WY}" fill="url(#river)"/>
   <g mask="url(#fadeMask)">
     <g transform="${mirror}" opacity=".3">
       <path d="${door.join('')}" fill="#ff9a3c"/>
-      <path d="${nb.arches}" fill="none" stroke="#ffd166" stroke-width="1.6" stroke-dasharray="2 4"/>
+      <rect x="${LC - 3}" y="40" width="6" height="${G - 40}" fill="#fff1c2" opacity=".5"/>
     </g>
     <g transform="${mirror}" fill="#ffcf6b" opacity=".2">${streaks}</g>
   </g>
   <g stroke="#c9b8ff" stroke-width=".8">${ripples}</g>`)
+    + layer('surf', `<path d="${foam}" fill="none" stroke="#e8e0ff" stroke-width="1.3" stroke-linecap="round" opacity=".55"/><path d="${foam2}" fill="none" stroke="#c9b8ff" stroke-width="1" stroke-linecap="round" opacity=".3"/>`)
     + layer('city-lit', `<use href="#cityFront" fill="url(#cityLit)"/>`)
     + vivid('v1', 'gSaffron')
     + vivid('v2', 'gMagenta')
     + vivid('v3', 'gGreen')
-    + layer('ferry', boat(520, WY + 30))
+    + layer('ferry', boat(560, WY + 36))
     + layer('city-lights a', `<g fill="#ffcf6b">${twinkleA}</g><g fill="#ffe7a0" filter="url(#cityGlow)">${lightsA}</g><g filter="url(#cityGlow)">${bridgeA}</g>`)
     + layer('city-lights b', `<g fill="#ffcf6b">${twinkleB}</g><g fill="#ffe7a0" filter="url(#cityGlow)">${lightsB}</g><g filter="url(#cityGlow)">${bridgeB}</g>`);
+
+  // the lighthouse beam is a plain element that only scales, so its sweep stays on the GPU
+  const beam = document.createElement('div');
+  beam.className = 'beam';
+  el.appendChild(beam);
 
   const base = el.querySelector('.city-base');
   const stop = el.querySelector('#cityLitStop');
   return {
     lit: el.querySelector('.city-lit'),
     setLightColor(hex) { stop.setAttribute('stop-color', hex); stop.nextElementSibling.setAttribute('stop-color', hex); },
+    /** pin the beam to the lantern (call after layout and on resize) */
+    placeBeam() {
+      const m = base.getScreenCTM(), r = el.getBoundingClientRect();
+      if (!m) return;
+      beam.style.left = `${m.a * l.lamp[0] + m.e - r.left}px`;
+      beam.style.top = `${m.d * l.lamp[1] + m.f - r.top}px`;
+    },
     /** viewBox point -> screen pixels (accounts for the slice crop) */
     toScreen(x, y) {
       const m = base.getScreenCTM();

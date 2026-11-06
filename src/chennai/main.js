@@ -3,6 +3,8 @@ import './style.css';
 import { gsap } from 'gsap';
 import { createFireworks, PALETTES, GOLD } from '../shared/fireworks.js';
 import { audio } from '../shared/audio.js';
+
+audio.configure({ warm: true }); // soft, warm sound palette for Chennai
 import { createSky } from '../shared/sky.js';
 import { bigBurst } from '../shared/rocket.js';
 import { createFuse } from '../shared/fuse.js';
@@ -59,6 +61,8 @@ async function main() {
 
   // Chennai skyline that catches the light of every burst
   const city = buildSkyline($('#skyline'));
+  city.placeBeam();
+  addEventListener('resize', () => city.placeBeam());
   // the glow layer only changes CSS opacity, which the GPU composites without repainting the city
   const lightCity = (color, strength) => {
     const target = Math.min(.75, .18 + strength / 220);
@@ -69,29 +73,8 @@ async function main() {
     gsap.to(city.lit, { opacity: 0, duration: 1.6, ease: 'power2.out' });
   };
 
-  let score = 0;
-  const scoreEl = $('#score'), scoreN = $('#score-n');
-  const onTargetBurst = () => {
-    score++;
-    scoreN.textContent = score;
-    scoreEl.classList.remove('bump'); void scoreEl.offsetWidth; scoreEl.classList.add('bump');
-    if (score % 10 === 0) { audio.chime(5); shake(); }
-  };
-
   const waterY = () => city.toScreen(0, WY).y;
-  const fx = await createFireworks($('#fx'), { quality: Q, onLight: lightCity, onTargetBurst, reflection: { y: waterY, alpha: .45 } });
-
-  /* ---------------- Floating crackers game ---------------- */
-  let targetTimer = null;
-  function startTargets() {
-    stopTargets();
-    const loop = () => {
-      if (!document.hidden && !idle() && fx.targetCount < 3) fx.spawnTarget();
-      targetTimer = setTimeout(loop, rand(1100, 2200));
-    };
-    loop();
-  }
-  function stopTargets() { clearTimeout(targetTimer); }
+  const fx = await createFireworks($('#fx'), { quality: Q, onLight: lightCity, reflection: { y: waterY, alpha: .45 } });
 
   /* ---------------- Ground show: flower pots, chakras, tiny crackers ---------------- */
   let groundTimer = null;
@@ -216,16 +199,13 @@ async function main() {
     hint.innerHTML = '&nbsp;';
     gsap.set('.reveal', { opacity: 0, y: 20 });
     greet.classList.remove('hidden');
-    revealLetters(fx, $('#g-top'), $('#g-name'), 'Happy Diwali', name, undefined, from);
+    revealLetters(fx, $('#g-top'), $('#g-name'), 'Happy Deepavali', name, undefined, from);
 
 
     gsap.to('.reveal', { opacity: 1, y: 0, duration: .7, ease: 'power2.out', stagger: .2, delay: 1.7 });
-    score = 0;
-    scoreN.textContent = '0';
     later(2600, startGame);
     startShow('party');
     later(900, startGround);
-    later(3200, startTargets);
   }
 
   /* ---------------- Mini-game: light the diyas ---------------- */
@@ -314,8 +294,6 @@ async function main() {
     audio.stopAll(); // cut every sound that is still playing or scheduled
     stopShow();
     stopGroundShow();
-    stopTargets();
-    fx.clearTargets();
     fx.stopGround();
     fx.clearPots();
     fx.clearSky();
@@ -362,17 +340,12 @@ async function main() {
   fuse.el.addEventListener('click', lightUp);
   diyaBtns.forEach((b) => b.addEventListener('click', () => lightDiya(b)));
   $('#again').addEventListener('click', reset);
-  // tap the sky for a firework; touch (or swipe across) a floating cracker to burst it
-  let pressing = false;
+  // tap the sky for a firework
   greet.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button')) return;
     audio.unlock();
-    pressing = true;
-    if (!fx.hit(e.clientX, e.clientY)) fx.launchShell(e.clientX, Math.min(e.clientY, fx.height * .7), { n: 120, flash: 60, user: true });
+    fx.launchShell(e.clientX, Math.min(e.clientY, fx.height * .7), { n: 120, flash: 60, user: true });
   });
-  greet.addEventListener('pointermove', (e) => { if (pressing || e.pointerType === 'mouse') fx.hit(e.clientX, e.clientY); });
-  addEventListener('pointerup', () => { pressing = false; });
-  addEventListener('pointercancel', () => { pressing = false; });
   $('#sound').addEventListener('click', (e) => {
     audio.unlock();
     const on = audio.toggle();
